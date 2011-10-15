@@ -1,8 +1,29 @@
-#ifndef LIBCONSENTPP_H_
-#define LIBCONSENTPP_H_
+// Copyright 2011 Conrad Meyer <cemeyer@uw.edu>
+//
+// This work is placed under the MIT license, the full text of which is
+// included in the `COPYING' file at the root of the project sources.
+//
+// Author(s): Conrad Meyer
+
+#ifndef INCLUDE_LIBCONSENTPP_H_
+#define INCLUDE_LIBCONSENTPP_H_
 
 #include <cstdint>
 #include <cstdlib>
+
+// This macro is borrowed from Google's C++ style guide, which places code
+// under the Perl license (GPL or Artistic). I think the terms of the Artistic
+// license are liberal enough for me to distribute this trivial snippet with
+// my MIT-licensed project; I'm pretty confident Google doesn't have a problem
+// with it.
+//
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#ifndef DISALLOW_COPY_AND_ASSIGN
+# define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&); \
+  void operator=(const TypeName&)
+#endif
 
 namespace LibConsent {
 namespace LowLevel {
@@ -17,7 +38,7 @@ typedef struct {
 
   int64_t log_num;
 } LogEntry;
-typedef void (*LogCallback)(LogEntry *);
+typedef void (*LogCallback)(LogEntry *entry);
 
 // Helper types for user-provided storage functions.
 //   Put(k, v) should only return when the user is sure the (k, v) pair is
@@ -26,9 +47,9 @@ typedef void (*LogCallback)(LogEntry *);
 // return the pointer to the library. The library will free the buffer when
 // no longer needed.
 typedef void (*StoragePut)(const char *key, size_t key_len,
-		const char *value, size_t value_len);
+    const char *value, size_t value_len);
 typedef void (*StorageGet)(const char *key, size_t key_len,
-		char **value, size_t *value_len);
+    char **value, size_t *value_len);
 
 class AgentInterface;
 
@@ -39,7 +60,8 @@ AgentInterface *Agent_New();
 // Agent is an opaque handle to a paxos agent. It's used to manage the
 // lifespan of an agent in paxos.
 class AgentInterface {
-public:
+ public:
+  virtual ~AgentInterface();
   virtual void set_log_callback(LogCallback callback) = 0;
   virtual void set_storage_callbacks(StoragePut putter, StorageGet getter) = 0;
 
@@ -75,11 +97,14 @@ public:
   // Agent and only submit with it.
   virtual void Submit(const char *value, int value_len) = 0;
 
-protected:
+ protected:
   AgentInterface() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AgentInterface);
 };
 
 }  // namespace LowLevel
 }  // namespace LibConsent
 
-#endif  // LIBCONSENTPP_H_
+#endif  // INCLUDE_LIBCONSENTPP_H_

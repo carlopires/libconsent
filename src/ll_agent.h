@@ -1,30 +1,29 @@
-#ifndef LIBCONSENT_LL_AGENT_H_
-#define LIBCONSENT_LL_AGENT_H_
+// Copyright 2011 Conrad Meyer <cemeyer@uw.edu>
+//
+// This work is placed under the MIT license, the full text of which is
+// included in the `COPYING' file at the root of the project sources.
+//
+// Author(s): Conrad Meyer
 
-#include <assert.h>
+#ifndef SRC_LL_AGENT_H_
+#define SRC_LL_AGENT_H_
 
-#include <libconsent++>
+#include <tr1/memory>
+
+#include <zmq.hpp>
+
+#include "../include/libconsentpp.h"
+
+using std::tr1::shared_ptr;
 
 namespace LibConsent {
 namespace LowLevel {
 
 class Agent : AgentInterface {
-public:
-  virtual void set_log_callback(LogCallback callback) {
-    assert(callback != NULL);
-    log_callback_ = callback;
-  }
-  virtual void set_storage_callbacks(StoragePut putter, StorageGet getter) {
-    assert(putter != NULL);
-    assert(getter != NULL);
-    storage_put_ = putter;
-    storage_get_ = getter;
-  }
-  Agent() {
-    log_callback_ = NULL;
-    storage_put_ = NULL;
-    storage_get_ = NULL;
-  }
+ public:
+  Agent();
+  virtual void set_log_callback(LogCallback callback);
+  virtual void set_storage_callbacks(StoragePut putter, StorageGet getter);
   virtual void AddPeers(const char *zmq_str, int num_peers);
   virtual void RemovePeers(const char *zmq_str, int num_peers);
   virtual void SetUniquePeerNumber(int n);
@@ -33,13 +32,17 @@ public:
   virtual void Start(bool recover);
   virtual void Submit(const char *value, int value_len);
 
-private:
+ private:
   LogCallback log_callback_;
   StoragePut storage_put_;
   StorageGet storage_get_;
+
+  shared_ptr<zmq::context_t> zmq_;
+
+  DISALLOW_COPY_AND_ASSIGN(Agent);
 };
 
 }  // namespace LowLevel
 }  // namespace LibConsent
 
-#endif  // LIBCONSENT_LL_AGENT_H_
+#endif  // SRC_LL_AGENT_H_

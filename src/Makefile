@@ -2,7 +2,7 @@
 # can simply set DIST_EXTRA_CPPFLAGS.
 
 CFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -mtune=generic -flto -fpic
-BUILDFLAGS = $(CFLAGS) -I../include -std=c++0x $(DIST_EXTRA_CPPFLAGS)
+BUILDFLAGS = $(CFLAGS) -std=c++0x $(DIST_EXTRA_CPPFLAGS)
 CC = g++
 
 SRCS = ll_agent.cc

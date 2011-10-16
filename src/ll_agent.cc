@@ -5,10 +5,15 @@
 //
 // Author(s): Conrad Meyer
 
-#include <cassert>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <assert.h>
+#include <fcntl.h>
 
 #include "../include/libconsentpp.h"
 #include "./ll_agent.h"
+#include "./util.h"
 
 namespace LibConsent {
 namespace LowLevel {
@@ -17,16 +22,23 @@ Agent::Agent() : zmq_(new zmq::context_t(1)) {
   log_callback_ = NULL;
   storage_put_ = NULL;
   storage_get_ = NULL;
+#ifdef LIBCONSENT_ASSERT_LOG_
+  assert_log_fd_ =
+    open(LIBCONSENT_ASSERT_LOG_, O_APPEND|O_CREAT|O_WRONLY, 0644);
+  assert(assert_log_fd_ != -1);
+#endif
 }
 
 void Agent::set_log_callback(LogCallback callback) {
-  assert(callback != NULL);
+  LC_ASSERT(callback != NULL);
+
   log_callback_ = callback;
 }
 
 void Agent::set_storage_callbacks(StoragePut putter, StorageGet getter) {
-  assert(putter != NULL);
-  assert(getter != NULL);
+  LC_ASSERT(putter != NULL);
+  LC_ASSERT(getter != NULL);
+
   storage_put_ = putter;
   storage_get_ = getter;
 }

@@ -19,7 +19,7 @@ using std::tr1::shared_ptr;
 namespace LibConsent {
 namespace LowLevel {
 
-class Agent : AgentInterface {
+class Agent : public AgentInterface {
  public:
   Agent();
   virtual void set_log_callback(LogCallback callback);
@@ -38,6 +38,10 @@ class Agent : AgentInterface {
   StorageGet storage_get_;
 
   shared_ptr<zmq::context_t> zmq_;
+
+#ifdef LIBCONSENT_ASSERT_LOG_
+  int assert_log_fd_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(Agent);
 };

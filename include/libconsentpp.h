@@ -65,16 +65,27 @@ class AgentInterface {
   virtual void set_log_callback(LogCallback callback) = 0;
   virtual void set_storage_callbacks(StoragePut putter, StorageGet getter) = 0;
 
+  // Set the peer number of this peer; it must be a unique number `n' s.t.
+  // 0 <= n < m, where `m' is the number of paxos peers participating in this
+  // replicated log.
+  virtual int unique_peer_number() = 0;
+  virtual void set_unique_peer_number(int n) = 0;
+
+  // Set the timeout to use before assuming a response has failed; should be
+  // something like the RTT between this node and the worst peer. Units of
+  // nanoseconds.
+  virtual int message_timeout_interval() = 0;
+  virtual void set_message_timeout_interval(int t) = 0;
+
+  // Get the percentage of expected messages which timeout. Useful for tuning
+  // the message timeout interval.
+  virtual double get_timeout_percent() = 0;
+
   // Inform the paxos agent of some peers accessible at some ZeroMQ URI.
   // num_peers should be strictly positive. (It must be 1 unless the URI
   // refers to a multicast transport.)
   virtual void AddPeers(const char *zmq_str, int num_peers) = 0;
   virtual void RemovePeers(const char *zmq_str, int num_peers) = 0;
-
-  // Set the peer number of this peer; it must be a unique number `n' s.t.
-  // 0 <= n < m, where `m' is the number of paxos peers participating in this
-  // replicated log.
-  virtual void SetUniquePeerNumber(int n) = 0;
 
   // Inform the paxos agent how it can recieve messages from other peers:
   virtual void AddBind(const char *zmq_str) = 0;
@@ -88,6 +99,7 @@ class AgentInterface {
   //   - The Agent has callbacks registered for incoming log entries, as
   //     well as putting/getting from stable storage.
   //   - The Agent has a unique peer number configured.
+  // Runs forever.
   virtual void Start(bool recover) = 0;
 
   // Asynchronously submits a value to log. May silently fail; clients

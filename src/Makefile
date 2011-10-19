@@ -9,7 +9,7 @@
 # NONE => no assertion checking
 ASSERTLEVEL = -DLIBCONSENT_ASSERT_HARD_
 
-CFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \
+CFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions \
 	 -fstack-protector --param=ssp-buffer-size=4 -mtune=generic -flto \
 	 -fpic -rdynamic
 BUILDFLAGS = -std=c++0x $(CFLAGS) $(DIST_EXTRA_CPPFLAGS)

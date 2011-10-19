@@ -12,7 +12,11 @@
 
 #include <assert.h>
 
+#include <tr1/memory>
+
 #include <zmq.h>
+
+using std::tr1::shared_ptr;
 
 namespace zmqmm {
 
@@ -56,7 +60,13 @@ class message_t {
 class socket_t {
  public:
   socket_t(context_t *ctx, int type) {
-    socket_ = zmq_socket(ctx->context(), type);
+    socket_t(ctx->context(), type);
+  }
+  socket_t(shared_ptr<context_t> ctx, int type) {
+    socket_t(ctx->context(), type);
+  }
+  socket_t(void *context, int type) {
+    socket_ = zmq_socket(context, type);
     assert(socket_);
   }
   ~socket_t() {

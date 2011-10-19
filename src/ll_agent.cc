@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include <pthread.h>
 
@@ -132,8 +133,11 @@ void Agent::Start(bool recover) {
 void Agent::Submit(const char *value, int value_len) {
   LC_ASSERT(value_len >= 0);
 
-  // TODO(conrad): this will create a sock, connect to inproc://agent-submit or
-  // similar, thereby signalling the Start() thread to submit a new value.
+  zmqmm::socket_t sock(zmq_, ZMQ_PUB);
+  if (sock.connect("inproc://agent-submit") == -1) return;
+  zmqmm::message_t msg(value_len);
+  memcpy(msg.data(), value, value_len);
+  sock.send(&msg, 0);
 }
 
 }  // namespace LowLevel

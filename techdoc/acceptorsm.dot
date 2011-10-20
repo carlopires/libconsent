@@ -1,0 +1,18 @@
+digraph acceptor {
+  rankdir=LR;
+  size="11,9"
+  node [shape = circle];
+
+  acceptor_begin -> store_value [ label = "ACCEPT!" ];
+  store_value -> reply_ACCEPTED [ label = "successfully?" ];
+  reply_ACCEPTED -> acceptor_begin;
+  store_value -> acceptor_begin [ label = "unsuccessfully?" ];
+
+  acceptor_begin -> is_proposal_outdated [ label = "PROPOSE" ];
+  is_proposal_outdated -> reply_NACK [ label = "yes" ];
+  reply_NACK -> acceptor_begin;
+  is_proposal_outdated -> store_promise [ label = "no" ];
+  store_promise -> acceptor_begin [ label = "failed" ];
+  store_promise -> reply_PROMISE [ label = "succeeded" ];
+  reply_PROMISE -> acceptor_begin;
+}

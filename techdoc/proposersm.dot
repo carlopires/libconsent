@@ -1,0 +1,20 @@
+digraph proposer {
+  rankdir=LR;
+  size="16,8"
+  node [shape = circle];
+
+  proposer_begin -> proposer_begin [ label = "queue empty" ];
+  proposer_begin -> are_we_leader [ label = "got value" ];
+  are_we_leader -> broadcast_ACCEPT [ label = "yes" ];
+  are_we_leader -> broadcast_PROPOSE [ label = "no" ];
+  broadcast_PROPOSE -> quorum_PROMISES;
+  quorum_PROMISES -> broadcast_PROPOSE [ label = "no" ];
+  quorum_PROMISES -> broadcast_ACCEPT [ label = "yes" ];
+  quorum_PROMISES -> is_our_number_higher [ label = "NACK" ];
+  is_our_number_higher -> proposer_begin [ label = "no" ];
+  is_our_number_higher -> broadcast_PROPOSE [ label = "yes" ];
+  broadcast_ACCEPT -> quorum_ACCEPTEDS;
+  quorum_ACCEPTEDS -> broadcast_ACCEPT [ label = "no" ];
+  quorum_ACCEPTEDS -> proposer_begin [ label = "yes" ];
+  quorum_ACCEPTEDS -> is_our_number_higher [ label = "NACK" ];
+}

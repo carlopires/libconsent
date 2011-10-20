@@ -1,0 +1,11 @@
+Required Deps: libzeromq, libstdc++
+Optional: glibcxx (backtrace() for assertion failure logging)
+
+Building with a different assertion scheme (note the trailing underscore):
+  make ASSERTLEVEL=-DLIBCONSENT_ASSERT_LOG_=\\\"abc.log\\\" clean all
+  make ASSERTLEVEL=-DLIBCONSENT_ASSERT_HARD_ clean all
+
+Caveat about assertion logging: Build with -rdynamic if you want function
+names in the log. If not, you can use:
+  `cat log.log | addr2line -e your.exe -f -C -p'.
+to get at the trace.

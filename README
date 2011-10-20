@@ -1,5 +1,5 @@
 libconsent is a C++ library which provides an interface for fault-tolerant
-logging (implemented with paxos).
+logging with paxos.
 
 Our primary goals are correctness, robustness, and simplicity. To that end,
 this work will be divided into two parts; a lower-level "bare bones" paxos
@@ -7,3 +7,6 @@ library, and a higher-level library sitting on top of the lower-level one
 providing convenient additional functionality. Group membership management,
 log truncation management, "master" lease semantics, and history "catch-up"
 are all features left for the higher-level library.
+
+THIS IS A WORK IN PROGRESS. The API is a moving target and nothing is
+implemented.

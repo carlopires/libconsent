@@ -26,12 +26,12 @@
 #endif
 
 namespace LibConsent {
-namespace LowLevel {
 
 // LogCallbacks are used by paxos agents to inform users that consensus
 // has been reached on a new value. They will only be called once for a given
 // log number (history sequencing number), although there may be duplicates
-// on restart.
+// on restart. Log numbers will start at 0 and increase by one with each
+// callback.
 typedef struct {
   char *value;
   int value_len;
@@ -65,12 +65,6 @@ class AgentInterface {
   virtual void set_log_callback(LogCallback callback) = 0;
   virtual void set_storage_callbacks(StoragePut putter, StorageGet getter) = 0;
 
-  // Set the peer number of this peer; it must be a unique number `n' s.t.
-  // 0 <= n < m, where `m' is the number of paxos peers participating in this
-  // replicated log.
-  virtual int unique_peer_number() = 0;
-  virtual void set_unique_peer_number(int n) = 0;
-
   // Set the timeout to use before assuming a response has failed; should be
   // something like the RTT between this node and the worst peer. Units of
   // nanoseconds.
@@ -81,26 +75,40 @@ class AgentInterface {
   // the message timeout interval.
   virtual double get_timeout_percent() = 0;
 
-  // Inform the paxos agent of some peers accessible at some ZeroMQ URI.
-  // num_peers should be strictly positive. (It must be 1 unless the URI
-  // refers to a multicast transport.)
-  virtual void AddPeers(const char *zmq_str, int num_peers) = 0;
-  virtual void RemovePeers(const char *zmq_str, int num_peers) = 0;
+  // Set/get the number of peers participating in paxos.
+  virtual void set_num_peers(int n) = 0;
+  virtual int num_peers() = 0;
 
-  // Inform the paxos agent how it can recieve messages from other peers:
-  virtual void AddBind(const char *zmq_str) = 0;
-  virtual void RemoveBind(const char *zmq_str) = 0;
+  // Set the peer number of this peer; it must be a unique number `n' s.t.
+  // 0 <= n < m, where `m' is the number of paxos peers participating in this
+  // replicated log.
+  virtual int unique_peer_number() = 0;
+  virtual void set_unique_peer_number(int n) = 0;
 
-  // Attempts to start a paxos agent. Unless `recover' is false, tries to
-  // recover (under the assumption the agent failed and is restarting).
+  // Set/get the zeromq endpoint for each peer in paxos (including yourself).
+  virtual void set_peer_endpoint(int peer_number, const char *zmq_endpoint) = 0;
+  virtual const char *peer_endpoint(int peer_number) = 0;
+
+  // Add/remove zeromq multicast endpoints for broadcasting to peers
+  // (performance optimization).
+  // - If no multicast endpoints are configured, libconsent will fall back on
+  //   point-to-point communication for message broadcast.
+  // - If one or more multicast endpoint is configured, libconsent will
+  //   broadcast on all of them.
+  virtual void add_multicast_endpoint(const char *zmq_endpoint) = 0;
+  virtual void remove_multicast_endpoint(const char *zmq_endpoint) = 0;
+
+  // Start this paxos agent.
   // Preconditions:
-  //   - The Agent has been bound to at least one zmq socket (AddBind())
-  //   - The Agent has >= 2 peers configured
+  //   - The number of paxos peers has been configured and is >= 2.
+  //   - The unique peer number for this peer has been configured.
+  //   - Every paxos peer has an endpoint configured.
   //   - The Agent has callbacks registered for incoming log entries, as
   //     well as putting/getting from stable storage.
-  //   - The Agent has a unique peer number configured.
-  // Runs forever.
-  virtual void Start(bool recover) = 0;
+  // Postconditions:
+  //   - No more calls to any method named_like_this() (no run-time re-
+  //     configuration yet, sorry).
+  virtual void Start() = 0;
 
   // Asynchronously submits a value to log. May silently fail; clients
   // should monitor the LogCallback and resubmit themselves.
@@ -116,7 +124,6 @@ class AgentInterface {
   DISALLOW_COPY_AND_ASSIGN(AgentInterface);
 };
 
-}  // namespace LowLevel
 }  // namespace LibConsent
 
 #endif  // INCLUDE_LIBCONSENTPP_H_

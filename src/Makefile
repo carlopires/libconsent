@@ -15,8 +15,8 @@ CFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions \
 BUILDFLAGS = -std=c++0x $(CFLAGS) $(DIST_EXTRA_CPPFLAGS)
 CC = g++
 
-SRCS = ll_agent.cc \
-       ll_agentinterface.cc \
+SRCS = agent.cc \
+       agentinterface.cc \
        util.cc
 OBJS = $(SRCS:.cc=.o)
 

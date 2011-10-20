@@ -12,16 +12,16 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include <pthread.h>
+#include <vector>
 
 #include "../include/libconsentpp.h"
-#include "./ll_agent.h"
+#include "./agent.h"
 #include "./util.h"
 
 namespace LibConsent {
-namespace LowLevel {
 
-Agent::Agent() : zmq_(new zmqmm::context_t(1)) {
+Agent::Agent() : zmq_(1/*io_threads*/), broadcast_socket_(&zmq_, ZMQ_PUB),
+  listen_socket_(&zmq_, ZMQ_SUB) {
   log_callback_ = NULL;
   storage_put_ = NULL;
   storage_get_ = NULL;
@@ -29,9 +29,8 @@ Agent::Agent() : zmq_(new zmqmm::context_t(1)) {
   message_timeout_interval_ = -1;
   stats_messages_expected_ = 0;
   stats_messages_received_ = 0;
-  num_peers_ = 1;
+  num_peers_ = 0;
 
-  pthread_rwlock_init(&rwlock_, NULL);
 #ifdef LIBCONSENT_ASSERT_LOG_
   assert_log_fd_ =
     open(LIBCONSENT_ASSERT_LOG_, O_APPEND|O_CREAT|O_WRONLY, 0644);
@@ -42,85 +41,86 @@ Agent::Agent() : zmq_(new zmqmm::context_t(1)) {
 void Agent::set_log_callback(LogCallback callback) {
   LC_ASSERT(callback != NULL);
 
-  pthread_rwlock_wrlock(&rwlock_);
   log_callback_ = callback;
-  pthread_rwlock_unlock(&rwlock_);
 }
 
 void Agent::set_storage_callbacks(StoragePut putter, StorageGet getter) {
   LC_ASSERT(putter != NULL);
   LC_ASSERT(getter != NULL);
 
-  pthread_rwlock_wrlock(&rwlock_);
   storage_put_ = putter;
   storage_get_ = getter;
-  pthread_rwlock_unlock(&rwlock_);
-}
-
-int Agent::unique_peer_number() {
-  int res;
-
-  pthread_rwlock_rdlock(&rwlock_);
-  res = unique_peer_number_;
-  pthread_rwlock_unlock(&rwlock_);
-
-  return res;
-}
-
-void Agent::set_unique_peer_number(int n) {
-  LC_ASSERT(n >= 0);
-
-  pthread_rwlock_wrlock(&rwlock_);
-  unique_peer_number_ = n;
-  pthread_rwlock_unlock(&rwlock_);
 }
 
 int Agent::message_timeout_interval() {
-  int res;
-
-  pthread_rwlock_rdlock(&rwlock_);
-  res = message_timeout_interval_;
-  pthread_rwlock_unlock(&rwlock_);
-
-  return res;
+  return message_timeout_interval_;
 }
 
 void Agent::set_message_timeout_interval(int t) {
   LC_ASSERT(t > 0);
 
-  pthread_rwlock_wrlock(&rwlock_);
   message_timeout_interval_ = t;
-  pthread_rwlock_unlock(&rwlock_);
 }
 
 double Agent::get_timeout_percent() {
-  int64_t expected, received;
-
-  pthread_rwlock_rdlock(&rwlock_);
-  expected = stats_messages_expected_;
-  received = stats_messages_received_;
-  pthread_rwlock_unlock(&rwlock_);
+  int64_t expected = stats_messages_expected_,
+          received = stats_messages_received_;
 
   if (!expected) return 0.0;
   double timedout = expected - received;
   return timedout / expected;
 }
 
-void Agent::AddPeers(const char *zmq_str, int num_peers) {
-  LC_ASSERT(num_peers > 0);
+void Agent::set_num_peers(int n) {
+  LC_ASSERT(n > 0);
+
+  num_peers_ = n;
+  peer_endpoints_.resize(n);
 }
 
-void Agent::RemovePeers(const char *zmq_str, int num_peers) {
-  LC_ASSERT(num_peers > 0);
+int Agent::num_peers() {
+  return num_peers_;
 }
 
-void Agent::AddBind(const char *zmq_str) {
+int Agent::unique_peer_number() {
+  return unique_peer_number_;
 }
 
-void Agent::RemoveBind(const char *zmq_str) {
+void Agent::set_unique_peer_number(int n) {
+  LC_ASSERT(n >= 0);
+  LC_ASSERT(n < num_peers_);
+
+  unique_peer_number_ = n;
 }
 
-void Agent::Start(bool recover) {
+void Agent::set_peer_endpoint(int peer_number, const char *zmq_endpoint) {
+  LC_ASSERT(peer_number >= 0);
+  LC_ASSERT(peer_number < num_peers_);
+  LC_ASSERT(zmq_endpoint);
+
+  peer_endpoints_[peer_number] = zmq_endpoint;
+}
+
+const char *Agent::peer_endpoint(int peer_number) {
+  LC_ASSERT(peer_number >= 0);
+  LC_ASSERT(peer_number < num_peers_);
+
+  return peer_endpoints_[peer_number].c_str();
+}
+
+void Agent::add_multicast_endpoint(const char *zmq_endpoint) {
+  LC_ASSERT(zmq_endpoint);
+
+  multicast_endpoints_.insert(std::string(zmq_endpoint));
+}
+
+void Agent::remove_multicast_endpoint(const char *zmq_endpoint) {
+  LC_ASSERT(zmq_endpoint);
+
+  multicast_endpoints_.erase(std::string(zmq_endpoint));
+}
+
+void Agent::Start() {
   LC_ASSERT(log_callback_);
   LC_ASSERT(storage_put_);
   LC_ASSERT(storage_get_);
@@ -128,17 +128,19 @@ void Agent::Start(bool recover) {
   LC_ASSERT(message_timeout_interval_ >= 0);
   LC_ASSERT(unique_peer_number_ < num_peers_);
   LC_ASSERT(num_peers_ > 2);
+
+  // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
+  // endpoint. Bring up state machines (one for acceptor, one for proposer).
 }
 
 void Agent::Submit(const char *value, int value_len) {
   LC_ASSERT(value_len >= 0);
 
-  zmqmm::socket_t sock(zmq_, ZMQ_PUB);
+  zmqmm::socket_t sock(&zmq_, ZMQ_PUB);
   if (sock.connect("inproc://agent-submit") == -1) return;
   zmqmm::message_t msg(value_len);
   memcpy(msg.data(), value, value_len);
   sock.send(&msg, 0);
 }
 
-}  // namespace LowLevel
 }  // namespace LibConsent

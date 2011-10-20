@@ -6,10 +6,9 @@
 // Author(s): Conrad Meyer
 
 #include "../include/libconsentpp.h"
-#include "./ll_agent.h"
+#include "./agent.h"
 
 namespace LibConsent {
-namespace LowLevel {
 
 AgentInterface *Agent_New() {
   return new Agent();
@@ -18,5 +17,4 @@ AgentInterface *Agent_New() {
 AgentInterface::~AgentInterface() {
 }
 
-}  // namespace LowLevel
 }  // namespace LibConsent

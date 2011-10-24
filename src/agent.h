@@ -15,6 +15,10 @@
 #include "../include/libconsentpp.h"
 #include "./zmqmm.h"
 
+#include "./acceptor.h"
+#include "./learner.h"
+#include "./proposer.h"
+
 namespace LibConsent {
 
 class Agent : public AgentInterface {
@@ -48,9 +52,9 @@ class Agent : public AgentInterface {
 
   // Run-time objects:
   zmqmm::context_t zmq_;
-  std::vector<zmqmm::socket_t> peer_unicast_sockets_;
-  zmqmm::socket_t broadcast_socket_, listen_socket_;
-  int64_t stats_messages_expected_, stats_messages_received_;
+  Acceptor acceptor_;
+  Proposer proposer_;
+  Learner learner_;
 
 #ifdef LIBCONSENT_ASSERT_LOG_
   int assert_log_fd_;

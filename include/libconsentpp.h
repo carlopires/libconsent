@@ -67,7 +67,8 @@ class AgentInterface {
 
   // Set the timeout to use before assuming a response has failed; should be
   // something like the RTT between this node and the worst peer. Units of
-  // nanoseconds.
+  // nanoseconds. Obviously this will only be as accurate as the underlying
+  // operating system timing mechanism. Only non-negative values are valid.
   virtual int message_timeout_interval() = 0;
   virtual void set_message_timeout_interval(int t) = 0;
 
@@ -86,6 +87,8 @@ class AgentInterface {
   virtual void set_unique_peer_number(int n) = 0;
 
   // Set/get the zeromq endpoint for each peer in paxos (including yourself).
+  // In case it wasn't already obvious, zmq_endpoint should be a valid ZeroMQ
+  // endpoint.
   virtual void set_peer_endpoint(int peer_number, const char *zmq_endpoint) = 0;
   virtual const char *peer_endpoint(int peer_number) = 0;
 
@@ -100,7 +103,7 @@ class AgentInterface {
 
   // Start this paxos agent.
   // Preconditions:
-  //   - The number of paxos peers has been configured and is >= 2.
+  //   - The number of paxos peers has been configured and is > 2.
   //   - The unique peer number for this peer has been configured.
   //   - Every paxos peer has an endpoint configured.
   //   - The Agent has callbacks registered for incoming log entries, as
@@ -114,7 +117,8 @@ class AgentInterface {
   // should monitor the LogCallback and resubmit themselves.
   //
   // Caveat: For efficiency purposes, users should arrange to have a master
-  // Agent and only submit with it.
+  // Agent and only submit with it. (There is some latency per-election, and
+  // each new Agent that wants to submit must become leader first.)
   virtual void Submit(const char *value, int value_len) = 0;
 
  protected:

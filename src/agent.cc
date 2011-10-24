@@ -15,20 +15,21 @@
 #include <vector>
 
 #include "../include/libconsentpp.h"
+
+#include "./acceptor.h"
 #include "./agent.h"
+#include "./learner.h"
+#include "./proposer.h"
 #include "./util.h"
 
 namespace LibConsent {
 
-Agent::Agent() : zmq_(1/*io_threads*/), broadcast_socket_(&zmq_, ZMQ_PUB),
-  listen_socket_(&zmq_, ZMQ_SUB) {
+Agent::Agent() : zmq_(1/*io_threads*/) {
   log_callback_ = NULL;
   storage_put_ = NULL;
   storage_get_ = NULL;
   unique_peer_number_ = -1;
   message_timeout_interval_ = -1;
-  stats_messages_expected_ = 0;
-  stats_messages_received_ = 0;
   num_peers_ = 0;
 
 #ifdef LIBCONSENT_ASSERT_LOG_
@@ -63,12 +64,7 @@ void Agent::set_message_timeout_interval(int t) {
 }
 
 double Agent::get_timeout_percent() {
-  int64_t expected = stats_messages_expected_,
-          received = stats_messages_received_;
-
-  if (!expected) return 0.0;
-  double timedout = expected - received;
-  return timedout / expected;
+  return acceptor_.get_timeout_percent();
 }
 
 void Agent::set_num_peers(int n) {
@@ -124,21 +120,35 @@ void Agent::Start() {
   LC_ASSERT(log_callback_);
   LC_ASSERT(storage_put_);
   LC_ASSERT(storage_get_);
-  LC_ASSERT(unique_peer_number_ >= 0);
-  LC_ASSERT(message_timeout_interval_ >= 0);
-  LC_ASSERT(unique_peer_number_ < num_peers_);
   LC_ASSERT(num_peers_ > 2);
+  LC_ASSERT(unique_peer_number_ >= 0);
+  LC_ASSERT(unique_peer_number_ < num_peers_);
+  LC_ASSERT(message_timeout_interval_ >= 0);
 
-  // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
-  // endpoint. Bring up state machines (one for acceptor, one for proposer).
+  int s = acceptor_.Init(this, &zmq_);
+  LC_ASSERT(s != -1);
+
+  s = proposer_.Init(this, &zmq_);
+  LC_ASSERT(s != -1);
+
+  s = learner_.Init(this, &zmq_, &acceptor_, log_callback_);
+  LC_ASSERT(s != -1);
+
+  acceptor_.Start();
+  proposer_.Start();
+  learner_.Start();
 }
 
 void Agent::Submit(const char *value, int value_len) {
   LC_ASSERT(value_len >= 0);
+  LC_ASSERT(value);
 
   zmqmm::socket_t sock(&zmq_, ZMQ_PUB);
-  if (sock.connect("inproc://agent-submit") == -1) return;
+
+  if (sock.connect(proposer_.input_endpoint()) == -1) return;
+
   zmqmm::message_t msg(value_len);
+
   memcpy(msg.data(), value, value_len);
   sock.send(&msg, 0);
 }

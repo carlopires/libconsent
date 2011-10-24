@@ -8,10 +8,6 @@
 #ifndef SRC_LEARNER_H_
 #define SRC_LEARNER_H_
 
-#include <set>
-#include <string>
-#include <vector>
-
 #include "../include/libconsentpp.h"
 #include "./zmqmm.h"
 
@@ -22,9 +18,7 @@ class Acceptor;
 
 class Learner {
  public:
-  Learner();
-  // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
-  // endpoint.
+  Learner() {}
   int Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
       LogCallback cb);
   void Start();

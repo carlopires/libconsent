@@ -9,18 +9,25 @@
 # NONE => no assertion checking
 ASSERTLEVEL = -DLIBCONSENT_ASSERT_HARD_
 
-CFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions \
+WARNFLAGS = -Wall -Werror
+CFLAGS = -O2 -g -pipe $(WARNFLAGS) -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions \
 	 -fstack-protector --param=ssp-buffer-size=4 -mtune=generic -flto \
 	 -fpic -rdynamic
 BUILDFLAGS = -std=c++0x $(CFLAGS) $(DIST_EXTRA_CPPFLAGS)
 CC = g++
 
-SRCS = agent.cc \
+SRCS = \
+       acceptor.cc \
+       agent.cc \
        agentinterface.cc \
+       learner.cc \
+       proposer.cc \
        util.cc
 OBJS = $(SRCS:.cc=.o)
 
 all: libconsent.so libconsent.a
+	@nm -D libconsent.so | grep 'U _ZN10LibConsent8' && \
+	  echo "Unresolved LibConsent symbols; build is broken." || :
 
 %.o:%.cc
 	$(CC) $(BUILDFLAGS) $(ASSERTLEVEL) -c $<

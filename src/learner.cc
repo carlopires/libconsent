@@ -5,29 +5,18 @@
 //
 // Author(s): Conrad Meyer
 
-#ifndef SRC_PROPOSER_H_
-#define SRC_PROPOSER_H_
-
-#include "../include/libconsentpp.h"
-#include "./zmqmm.h"
+#include "./learner.h"
 
 namespace LibConsent {
 
-class Agent;
-
-class Proposer {
- public:
-  Proposer() {}
-  const char *input_endpoint();
+int Learner::Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
+    LogCallback cb) {
   // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
   // endpoint.
-  int Init(Agent *agent, zmqmm::context_t *zmq);
-  void Start();
+  return -1;
+}
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(Proposer);
-};
+void Learner::Start() {
+}
 
 }  // namespace LibConsent
-
-#endif  // SRC_PROPOSER_H_

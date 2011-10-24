@@ -43,12 +43,15 @@ typedef void (*LogCallback)(LogEntry *entry);
 // Helper types for user-provided storage functions.
 //   Put(k, v) should only return when the user is sure the (k, v) pair is
 // stored in a sufficiently stable fashion as required by the user.
+// It returns false when it determines it cannot store the pair with the
+// desired stability (e.g., when the disk is full).
 //   Get(k) should copy the value into a freshly-malloc()ed buffer and
 // return the pointer to the library. The library will free the buffer when
-// no longer needed.
-typedef void (*StoragePut)(const char *key, size_t key_len,
+// no longer needed. It returns false when it cannot retrieve the
+// corresponding value.
+typedef bool (*StoragePut)(const char *key, size_t key_len,
     const char *value, size_t value_len);
-typedef void (*StorageGet)(const char *key, size_t key_len,
+typedef bool (*StorageGet)(const char *key, size_t key_len,
     char **value, size_t *value_len);
 
 class AgentInterface;

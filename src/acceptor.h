@@ -8,10 +8,6 @@
 #ifndef SRC_ACCEPTOR_H_
 #define SRC_ACCEPTOR_H_
 
-#include <set>
-#include <string>
-#include <vector>
-
 #include "../include/libconsentpp.h"
 #include "./zmqmm.h"
 
@@ -21,10 +17,8 @@ class Agent;
 
 class Acceptor {
  public:
-  Acceptor();
+  Acceptor() {}
   double get_timeout_percent();
-  // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
-  // endpoint.
   int Init(Agent *agent, zmqmm::context_t *zmq);
   void Start();
 

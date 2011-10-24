@@ -33,8 +33,9 @@ namespace LibConsent {
 // on restart. Log numbers will start at 0 and increase by one with each
 // callback.
 typedef struct {
-  char *value;
   int value_len;
+  int proposer_num;
+  char *value;
 
   int64_t log_num;
 } LogEntry;

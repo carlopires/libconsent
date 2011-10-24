@@ -8,6 +8,8 @@
 #ifndef SRC_ACCEPTOR_H_
 #define SRC_ACCEPTOR_H_
 
+#include <string>
+
 #include "../include/libconsentpp.h"
 #include "./zmqmm.h"
 
@@ -18,8 +20,17 @@ class Agent;
 class Acceptor {
  public:
   Acceptor() {}
-  double get_timeout_percent();
+
+  // The endpoint to subscribe to to get learner messages. The protocol is a
+  // series of two-part messages; the first part is a protocol buffers
+  // header and the second part is the log "value".
+  std::string output_endpoint();
+
+  // Initialize this Acceptor; returns -1 on error, setting errno (potentially
+  // a ZMQ errno, however; use zmq_strerror(3).
   int Init(Agent *agent, zmqmm::context_t *zmq);
+
+  // Starts this Acceptor running in its own thread.
   void Start();
 
  private:

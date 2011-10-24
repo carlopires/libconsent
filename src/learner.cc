@@ -5,15 +5,21 @@
 //
 // Author(s): Conrad Meyer
 
+#include "./acceptor.h"
 #include "./learner.h"
 
 namespace LibConsent {
 
 int Learner::Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
-    LogCallback cb) {
-  // TODO(Conrad) bring up sockets; verify that connect() succeeds on each
-  // endpoint.
-  return -1;
+    LogCallback callback) {
+  if (listen_socket_.init(zmq, ZMQ_SUB) == -1) return -1;
+  if (listen_socket_.connect(acceptor->output_endpoint().c_str()) == -1)
+    return -1;
+  if (listen_socket_.setsockopt(ZMQ_SUBSCRIBE, NULL, 0) == -1) return -1;
+
+  callback_ = callback;
+
+  return 0;
 }
 
 void Learner::Start() {

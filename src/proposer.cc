@@ -9,8 +9,12 @@
 
 namespace LibConsent {
 
-const char *Proposer::input_endpoint() {
-  return NULL;
+double Proposer::get_timeout_percent() {
+  return 0.0;
+}
+
+std::string Proposer::input_endpoint() {
+  return "";
 }
 
 int Proposer::Init(Agent *agent, zmqmm::context_t *zmq) {

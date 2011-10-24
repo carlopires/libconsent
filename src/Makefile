@@ -9,7 +9,7 @@
 # NONE => no assertion checking
 ASSERTLEVEL = -DLIBCONSENT_ASSERT_HARD_
 
-WARNFLAGS = -Wall -Werror
+WARNFLAGS = -Wall -Werror -Wno-error=unused-variable
 CFLAGS = -O2 -g -pipe $(WARNFLAGS) -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions \
 	 -fstack-protector --param=ssp-buffer-size=4 -mtune=generic -flto \
 	 -fpic -rdynamic
@@ -26,8 +26,9 @@ SRCS = \
 OBJS = $(SRCS:.cc=.o)
 
 all: libconsent.so libconsent.a
-	@nm -D libconsent.so | grep 'U _ZN10LibConsent8' && \
-	  echo "Unresolved LibConsent symbols; build is broken." || :
+	@if nm -D libconsent.so | grep 'U _ZN10LibConsent' ; then \
+	  echo "Unresolved LibConsent symbols; build is broken." ; \
+	  fi
 
 %.o:%.cc
 	$(CC) $(BUILDFLAGS) $(ASSERTLEVEL) -c $<

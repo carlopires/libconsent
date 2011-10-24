@@ -64,7 +64,7 @@ void Agent::set_message_timeout_interval(int t) {
 }
 
 double Agent::get_timeout_percent() {
-  return acceptor_.get_timeout_percent();
+  return proposer_.get_timeout_percent();
 }
 
 void Agent::set_num_peers(int n) {
@@ -145,7 +145,7 @@ void Agent::Submit(const char *value, int value_len) {
 
   zmqmm::socket_t sock(&zmq_, ZMQ_PUB);
 
-  if (sock.connect(proposer_.input_endpoint()) == -1) return;
+  if (sock.connect(proposer_.input_endpoint().c_str()) == -1) return;
 
   zmqmm::message_t msg(value_len);
 

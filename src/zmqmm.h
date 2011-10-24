@@ -55,12 +55,14 @@ class message_t {
 
 class socket_t {
  public:
+  socket_t() {}
   socket_t(context_t *ctx, int type) {
-    socket_t(ctx->context(), type);
+    int s = init(ctx->context(), type);
+    assert(s != -1);
   }
-  socket_t(void *context, int type) {
+  int init(void *context, int type) {
     socket_ = zmq_socket(context, type);
-    assert(socket_);
+    return socket_? 0 : -1;
   }
   ~socket_t() {
     int s = zmq_close(socket_);
@@ -70,6 +72,13 @@ class socket_t {
     int s;
     do {
       s = zmq_setsockopt(socket_, option_name, option_value, option_len);
+    } while (s == -1 && errno == EINTR);
+    return s;
+  }
+  int getsockopt(int option_name, void *option_value, size_t *option_len) {
+    int s;
+    do {
+      s = zmq_getsockopt(socket_, option_name, option_value, option_len);
     } while (s == -1 && errno == EINTR);
     return s;
   }

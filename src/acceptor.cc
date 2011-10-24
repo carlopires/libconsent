@@ -9,8 +9,8 @@
 
 namespace LibConsent {
 
-double Acceptor::get_timeout_percent() {
-  return 0.0;
+std::string Acceptor::output_endpoint() {
+  return "";
 }
 
 int Acceptor::Init(Agent *agent, zmqmm::context_t *zmq) {

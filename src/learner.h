@@ -19,11 +19,19 @@ class Acceptor;
 class Learner {
  public:
   Learner() {}
+
+  // Initialize this Learner; returns -1 on error, setting errno (potentially
+  // a ZMQ errno, however; use zmq_strerror(3). Learns from the acceptor
+  // specified; outputs to `callback'.
   int Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
-      LogCallback cb);
+      LogCallback callback);
+
+  // Starts this Learner running in its own thread.
   void Start();
 
  private:
+  LogCallback callback_;
+  zmqmm::socket_t listen_socket_;
   DISALLOW_COPY_AND_ASSIGN(Learner);
 };
 

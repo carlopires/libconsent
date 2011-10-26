@@ -29,5 +29,21 @@ quorum_ACCEPTEDs:
     [txmit ACCEPT!].
     -> quorum_ACCEPTEDs.
 
-...
-(Incomplete.)
+quorum_PROMISEs:
+  Poll for PROMISE or PNACK messages with some timeout.
+  on PROMISE:
+    if this message gives us quroum:
+      [txmit ACCEPT!].
+      -> quorum_ACCEPTEDs.
+    else:
+      continue polling.
+  on PNACK:
+    Mark ourselves as not leader.
+    Is our number higher?
+      [txmit value to proposer input queue.]
+      -> proposer_begin.
+    Else:
+      -> proposer_begin.
+  on timeout:
+    [txmit PROPOSE].
+    -> quorum_PROMISEs.

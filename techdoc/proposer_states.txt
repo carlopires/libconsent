@@ -1,0 +1,49 @@
+Leadership status is stored in unstable storage; we assume we are not leader
+on recovery and must perform the basic paxos primitive again.
+
+proposer_begin:
+  Polls for values from clients.
+  on value:
+    if we are leader:
+      [txmit ACCEPT!].
+      -> quorum_ACCEPTEDs.
+    else:
+      [txmit PROPOSE].
+      -> quorum_PROMISEs.
+
+quorum_ACCEPTEDs:
+  Poll for ACCEPTED or ANACK messages with some timeout.
+  on ACCEPTED:
+    if this message gives us quorum:
+      -> proposer_begin.
+    else:
+      continue polling.
+  on ANACK:
+    Mark ourselves as not leader.
+    Is our number higher?
+      [txmit value to proposer input queue].
+      -> proposer_begin.
+    Else:
+      -> proposer_begin.
+  on timeout:
+    [txmit ACCEPT!].
+    -> quorum_ACCEPTEDs.
+
+quorum_PROMISEs:
+  Poll for PROMISE or PNACK messages with some timeout.
+  on PROMISE:
+    if this message gives us quroum:
+      [txmit ACCEPT!].
+      -> quorum_ACCEPTEDs.
+    else:
+      continue polling.
+  on PNACK:
+    Mark ourselves as not leader.
+    Is our number higher?
+      [txmit value to proposer input queue.]
+      -> proposer_begin.
+    Else:
+      -> proposer_begin.
+  on timeout:
+    [txmit PROPOSE].
+    -> quorum_PROMISEs.

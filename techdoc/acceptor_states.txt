@@ -1,0 +1,26 @@
+N is kept in memory but changes must be persisted successfully before replies.
+
+acceptor_begin:
+  Polls for an ACCEPT! or PROPOSE message.
+  ACCEPT! -> store_value.
+  PROPOSE -> is_proposal_outdated.
+
+store_value:
+  if local N greater than ACCEPT!'s N:
+    [txmit ANACK] (recovered old leader still thinks it is leader).
+    -> acceptor_begin.
+  if value is known for this key or cannot be determined -> acceptor_begin.
+  otherwise, store the value; on error -> acceptor_begin.
+  [txmit ACCEPTED].
+  -> acceptor_begin.
+
+is_proposal_outdated:
+  if local N is greater than PROPOSE's N:
+    [txmit PNACK].
+    -> acceptor_begin.
+  -> store_promise.
+
+store_promise:
+  write new local N to stable storage; on error -> acceptor_begin.
+  [txmit PROMISE].
+  -> acceptor_begin.

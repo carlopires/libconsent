@@ -1,0 +1,6 @@
+cpplint.py
+.*.swp
+techdoc/*.png
+src/*.a
+src/*.o
+src/*.so

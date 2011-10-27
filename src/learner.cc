@@ -7,6 +7,7 @@
 
 #include "./acceptor.h"
 #include "./learner.h"
+#include "./util.h"
 
 namespace LibConsent {
 
@@ -22,10 +23,11 @@ int Learner::Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
   return 0;
 }
 
-static void *LearnerRun(void *unused) {
+static void *LearnerRun(void *learner_) {
+  Learner *learner = reinterpret_cast<Learner*>(learner_);
   zmqmm::message_t msg;
   while (true) {
-    int s = listen_socket_.recv(&msg, 0);
+    int s = learner->listen_socket_.recv(&msg, 0);
     if (s == -1) {
       switch (errno) {
         case ETERM:
@@ -36,7 +38,7 @@ static void *LearnerRun(void *unused) {
     }
 
     // TODO(Conrad) msg contains {proposer_num, log_num, value_len, value}.
-    // TODO(Conrad) just pass it directly to callback_().
+    // TODO(Conrad) just pass it directly to learner.callback_().
 
     msg.reinit();
   }
@@ -44,7 +46,8 @@ static void *LearnerRun(void *unused) {
 
 void Learner::Start() {
   pthread_t thread_id;
-  int s = pthread_create(&thread_id, NULL, LearnerRun, NULL);
+  int s = pthread_create(&thread_id, NULL, LearnerRun,
+      reinterpret_cast<void*>(this));
   LC_ASSERT(s == 0);
 }
 

@@ -29,9 +29,11 @@ namespace LibConsent {
 
 // LogCallbacks are used by paxos agents to inform users that consensus
 // has been reached on a new value. They will only be called once for a given
-// log number (history sequencing number), although there may be duplicates
-// on restart. Log numbers will start at 0 and increase by one with each
-// callback.
+// log number (history sequencing number).
+//
+// Log numbers start at 0; however, transient network errors can cause us to
+// miss log entries. If a client receives an out of order log number, it is
+// up to them to retrieve the missing log entries from other paxos agents.
 typedef struct {
   int value_len;
   int proposer_num;

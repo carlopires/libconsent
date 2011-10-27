@@ -48,6 +48,11 @@ class message_t {
   zmq_msg_t *msg() { return &msg_; }
   void *data() { return zmq_msg_data(&msg_); }
   size_t size() { return zmq_msg_size(&msg_); }
+  void reinit() {
+    int s = zmq_close(&msg_);
+    assert(s != -1);
+    zmq_msg_init(&msg_);
+  }
 
  private:
   zmq_msg_t msg_;

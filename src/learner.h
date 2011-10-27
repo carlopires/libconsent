@@ -29,9 +29,10 @@ class Learner {
   // Starts this Learner running in its own thread.
   void Start();
 
- private:
   LogCallback callback_;
   zmqmm::socket_t listen_socket_;
+
+ private:
   DISALLOW_COPY_AND_ASSIGN(Learner);
 };
 

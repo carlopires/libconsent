@@ -37,4 +37,4 @@ libconsent.so: $(OBJS)
 	$(CC) -shared -Wl,-soname,libconsent.so.0 -rdynamic -o $@ $(OBJS)
 
 clean:
-	rm -f *.o *.so *.a
+	rm -f *.o *.so

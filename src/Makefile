@@ -25,7 +25,7 @@ SRCS = \
        util.cc
 OBJS = $(SRCS:.cc=.o)
 
-all: libconsent.so libconsent.a
+all: libconsent.so
 	@if nm -D libconsent.so | grep 'U _ZN10LibConsent' ; then \
 	  echo "Unresolved LibConsent symbols; build is broken." ; \
 	  fi
@@ -35,9 +35,6 @@ all: libconsent.so libconsent.a
 
 libconsent.so: $(OBJS)
 	$(CC) -shared -Wl,-soname,libconsent.so.0 -rdynamic -o $@ $(OBJS)
-
-libconsent.a: $(OBJS)
-	ar rcs $@ $(OBJS)
 
 clean:
 	rm -f *.o *.so *.a

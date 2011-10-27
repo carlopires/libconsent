@@ -22,7 +22,30 @@ int Learner::Init(Agent *agent, zmqmm::context_t *zmq, Acceptor *acceptor,
   return 0;
 }
 
+static void *LearnerRun(void *unused) {
+  zmqmm::message_t msg;
+  while (true) {
+    int s = listen_socket_.recv(&msg, 0);
+    if (s == -1) {
+      switch (errno) {
+        case ETERM:
+          return NULL;
+        default:
+          LC_ASSERT(false);
+      }
+    }
+
+    // TODO(Conrad) msg contains {proposer_num, log_num, value_len, value}.
+    // TODO(Conrad) just pass it directly to callback_().
+
+    msg.reinit();
+  }
+}
+
 void Learner::Start() {
+  pthread_t thread_id;
+  int s = pthread_create(&thread_id, NULL, LearnerRun, NULL);
+  LC_ASSERT(s == 0);
 }
 
 }  // namespace LibConsent

@@ -23,7 +23,8 @@ SRCS = \
        learner.cc \
        proposer.cc \
        util.cc
-OBJS = $(SRCS:.cc=.o)
+
+OBJS = $(SRCS:.cc=.o) paxos.pb.o
 
 all: libconsent.so
 	@if nm -D libconsent.so | grep 'U _ZN10LibConsent' ; then \
@@ -35,6 +36,17 @@ all: libconsent.so
 
 libconsent.so: $(OBJS)
 	$(CC) -shared -Wl,-soname,libconsent.so.0 -rdynamic -o $@ $(OBJS)
+
+paxos.pb.cc: paxos.proto
+	protoc --cpp_out=. paxos.proto
+
+cpplint:
+	@pushd .. > /dev/null ; \
+	  if [ "x$$(python cpplint.py include/*.h $(SRCS) $(SRCS:.cc=.h) 2>&1 | tail -n1 | cut -f4 -d' ')" != "x0" ]; then \
+	  echo "Error, cpplint doesn't pass" ; \
+	  exit 1 ; \
+	fi ; \
+	popd > /dev/null
 
 clean:
 	rm -f *.o *.so

@@ -1,0 +1,52 @@
+// Copyright 2011 Conrad Meyer <cemeyer@uw.edu>
+//
+// This work is placed under the MIT license, the full text of which is
+// included in the `COPYING' file at the root of the project sources.
+//
+// Author(s): Conrad Meyer
+//
+// This file defines the protocol used internally to communicate between
+// pieces of LibConsent. Caveat: 'optional' message members are not actually
+// optional, but verified by LibConsent instead of protobuf.
+
+package LibConsent;
+
+// Message header for a two-part message sent from acceptors to learners
+// (inside the same agent). The second part of the message is the associated
+// log entry.
+message AcceptorLearnerPacketHeader {
+  optional int32 proposer_id = 1;
+  optional int64 log_number = 2;
+}
+
+// Messages sent from proposers to acceptors. ACCEPT! messages have a second
+// message part, consisting of the log entry.
+message ProposerAcceptorPacket {
+  optional int32 proposer_id = 1;
+  optional int64 proposal_id = 2; // N
+
+  // AcceptHeaders will have this field, Prepares will not:
+  optional int64 log_number = 3;
+
+  enum ProposerPacketType {
+    PREPARE = 0;
+    ACCEPT = 1;
+  }
+
+  optional ProposerPacketType packet_type = 4;
+}
+
+// Messages sent from acceptors to proposers.
+message AcceptorProposerPacket {
+  optional int32 acceptor_id = 1;
+  optional int64 proposal_id = 2; // N
+
+  enum AcceptorPacketType {
+    PROMISE = 2;
+    ACCEPTED = 3;
+    PNACK = 4;
+    ANACK = 5;
+  }
+
+  optional AcceptorPacketType packet_type = 3;
+}

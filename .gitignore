@@ -4,3 +4,5 @@ techdoc/*.png
 src/*.a
 src/*.o
 src/*.so
+src/paxos.pb.cc
+src/paxos.pb.h

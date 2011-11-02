@@ -26,8 +26,6 @@
 namespace LibConsent {
 
 Agent::Agent() : zmq_(1/*io_threads*/) {
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
   log_callback_ = NULL;
   storage_put_ = NULL;
   storage_get_ = NULL;
@@ -158,6 +156,10 @@ void Agent::Submit(const char *value, int value_len) {
 
   memcpy(msg.data(), value, value_len);
   sock.send(&msg, 0);
+}
+
+Agent::~Agent() {
+  google::protobuf::ShutdownProtobufLibrary();
 }
 
 }  // namespace LibConsent

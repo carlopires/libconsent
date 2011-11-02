@@ -24,6 +24,7 @@ namespace LibConsent {
 class Agent : public AgentInterface {
  public:
   Agent();
+  virtual ~Agent();
   virtual void set_log_callback(LogCallback callback);
   virtual void set_storage_callbacks(StoragePut putter, StorageGet getter);
   virtual int message_timeout_interval();

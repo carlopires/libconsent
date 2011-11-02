@@ -37,7 +37,7 @@ namespace LibConsent {
 typedef struct {
   int value_len;
   int proposer_num;
-  char *value;
+  void *value;
 
   int64_t log_num;
 } LogEntry;

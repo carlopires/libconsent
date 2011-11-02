@@ -9,6 +9,7 @@
 #define SRC_ACCEPTOR_H_
 
 #include <string>
+#include <vector>
 
 #include "../include/libconsentpp.h"
 #include "./zmqmm.h"
@@ -34,6 +35,10 @@ class Acceptor {
   void Start();
 
  private:
+  zmqmm::socket_t input_socket_, output_socket_;
+  std::vector<zmqmm::socket_t> proposer_sockets_;
+  std::string output_endpoint_;
+
   DISALLOW_COPY_AND_ASSIGN(Acceptor);
 };
 

@@ -19,12 +19,15 @@
 #include "./acceptor.h"
 #include "./agent.h"
 #include "./learner.h"
+#include "./paxos.pb.h"
 #include "./proposer.h"
 #include "./util.h"
 
 namespace LibConsent {
 
 Agent::Agent() : zmq_(1/*io_threads*/) {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   log_callback_ = NULL;
   storage_put_ = NULL;
   storage_get_ = NULL;
@@ -114,6 +117,10 @@ void Agent::remove_multicast_endpoint(const char *zmq_endpoint) {
   LC_ASSERT(zmq_endpoint);
 
   multicast_endpoints_.erase(std::string(zmq_endpoint));
+}
+
+std::set<std::string> Agent::multicast_endpoints() {
+  return multicast_endpoints_;
 }
 
 void Agent::Start() {

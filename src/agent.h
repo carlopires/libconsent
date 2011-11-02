@@ -38,6 +38,8 @@ class Agent : public AgentInterface {
   virtual void add_multicast_endpoint(const char *zmq_endpoint);
   virtual void remove_multicast_endpoint(const char *zmq_endpoint);
 
+  virtual std::set<std::string> multicast_endpoints();
+
   virtual void Start();
   virtual void Submit(const char *value, int value_len);
 

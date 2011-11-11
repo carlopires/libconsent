@@ -13,6 +13,29 @@ import time
 import zmq
 import zmqrpc
 
+# Takes in a number of peers, and a list of at most n_peers values.
+# Returns (True, value) if any value has quorum.
+# Returns (False, None) if no value has quorum.
+def majority(n_peers, values):
+  if len(values) < ((n_peers // 2) + 1):
+    return (False, None)
+
+  v_counts = []
+  for v in values:
+    found = False
+    for rec in v_counts:
+      if rec[0] == v:
+        rec[1] += 1
+        found = True
+    if not found:
+      v_counts.append([v, 1])
+
+  for (v, count) in v_counts:
+    if count >= ((n_peers // 2) + 1):  # quorum?
+      return (True, v)
+
+  return (False, None)
+
 class acceptor(threading.Thread):
   def __init__(self, peers, dbfile):
     threading.Thread.__init__(self)
@@ -93,6 +116,7 @@ class proposer(threading.Thread):
     self.peers = peers
     self.queue = queue.Queue()
     self.daemon = True
+    self.timeout = 0.1  # seconds
     self.start()
 
   def propose(self, value):
@@ -105,32 +129,19 @@ class proposer(threading.Thread):
 
       # Phase 1:
       N = 0
-      maj, resps = zmqrpc.async_multicall(self.peers, 0.1, "prepare", [N])
+      maj, resps = zmqrpc.async_multicall(self.peers, self.timeout, "prepare", [N])
 
       if maj:
         # We can only send our 'v' for acceptance if we have not crossed the
         # rubicon: if any other v *possibly* has quorum, we can't submit.
-        prev_vs = []
-        for (promise, N, prev_v) in resps:
-          found = False
-          for rec in prev_vs:
-            if rec[0] == prev_v:
-              rec[1] += 1
-              found = True
-          if not found:
-            prev_vs.append([prev_v, 1])
+        maj, maj_val = majority(len(self.peers), [resp[2] for resp in resps])
 
-        for (prev_v, count) in prev_vs:
-          if count >= ((len(self.peers) // 2) + 1):  # quorum?
-            if prev_v is not None:
-              v = prev_v
-            break
+      if maj:
+        if maj_val is not None:
+          v = maj_val
 
         # Phase 2:
-        zmqrpc.async_multicall(self.peers, 0.1, "accept", [N, v])
-
-      else:  # we can't submit if we didn't get a response from majority of peers
-        pass
+        zmqrpc.async_multicall(self.peers, self.timeout, "accept", [N, v])
 
 class rpcsurface:
   def __init__(self, peers, dbfile):

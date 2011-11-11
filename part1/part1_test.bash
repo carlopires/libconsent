@@ -110,4 +110,5 @@ done
 kill %1 %2 %3
 for repl in "${replicas[@]}" ; do
   rm "backing_${repl}.db"
+  rm "${repl}" # zmq sockets
 done

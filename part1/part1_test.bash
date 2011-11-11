@@ -1,26 +1,41 @@
 #!/bin/bash
 
 # Terminal log showing this script in use:
+#
 # $ bash part1_test.bash 
-# Paxos implementation tool:
-#   Usage:
-#     propose <r> <v> - Propose value v
-#     learn <r>       - Check learned value
-#     exit|quit       - Quit
-#   <r> is the replica name to send the rpc to
-#   <v> is the value
-# 
-# > propose alice test1
-# None
-# > propose bob test2 
-# None
-# > propose charlie test3
-# None
-# > propose alice test4
-# None
-# > learn bob
-# ('KNOW', 'test1')
-# > exit
+#   Paxos implementation tool:
+#     Usage:
+#       propose <r> <v> - Propose value v
+#       learn <r>       - Check learned value
+#       exit|quit       - Quit
+#     <r> is the replica name to send the rpc to
+#     <v> is the value
+#
+#   > propose alice test1
+#   None
+#   > propose bob test2 
+#   None
+#   > propose charlie test3
+#   None
+#   > propose alice test4
+#   None
+#   > learn bob
+#   ('KNOW', 'test1')
+#   > exit
+#
+# Another:
+#   $ bash part1_test.bash 
+#   Paxos implementation tool:
+#     Usage:
+#       propose <r> <v> - Propose value v
+#       learn <r>       - Check learned value
+#       exit|quit       - Quit
+#     <r> is the replica name to send the rpc to
+#     <v> is the value
+#
+#   > learn alice
+#   ('DONT_KNOW',)
+#   >
 
 # Put as many distinctly-named replicas as you want here (N > 0):
 replicas=( alice bob charlie )

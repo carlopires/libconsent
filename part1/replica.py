@@ -56,6 +56,7 @@ class acceptor(threading.Thread):
         propose_N = v[3]
         if "N" not in self.db or propose_N > self.db["N"]:
           self.db["N"] = propose_N
+          self.db.sync()
           out.append(("promise", propose_N, self.db.get("V")))
         else:
           pass
@@ -65,7 +66,9 @@ class acceptor(threading.Thread):
         propose_N, propose_v = v[3]
         if "N" not in self.db or self.db["N"] <= propose_N:
           self.db["N"] = propose_N
+          self.db.sync()
           self.db["V"] = propose_v
+          self.db.sync()
         else:
           pass
           # what now? TODO

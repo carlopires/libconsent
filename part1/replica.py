@@ -62,39 +62,43 @@ class acceptor(threading.Thread):
           # what now? TODO
       elif cmd == "accept":
         # Phase 2:
-        propose_N, propose_v = v[3], v[4]
-        if self.db["N"] <= propose_N:
+        propose_N, propose_v = v[3]
+        if "N" not in self.db or self.db["N"] <= propose_N:
           self.db["N"] = propose_N
           self.db["V"] = propose_v
         else:
           pass
           # what now? TODO
         out.append(None)
+      elif cmd == "query":
+        out.append((self.db.get("N"), self.db.get("V")))
       else:
         out.append(None)
 
       cv.notify()
       cv.release()
 
+  class _WorkFuture:
+    def __init__(self, queue, cmd, args):
+      self.cv = threading.Condition()
+      self.cv.acquire()
+      self.res = []
+      queue.put((self.cv, cmd, self.res, args))
+
+    def get(self):
+      while len(self.res) < 1:
+        self.cv.wait()
+      self.cv.release()
+      return self.res[0]
+
   def prepare(self, N):
-    cv = threading.Condition()
-    cv.acquire()
-    res = []
-    self.queue.put((cv, "prepare", res, N))
-    while len(res) < 1:
-      cv.wait()
-    cv.release()
-    return res[0]
+    return acceptor._WorkFuture(self.queue, "prepare", N).get()
 
   def accept(self, N, v):
-    cv = threading.Condition()
-    cv.acquire()
-    res = []
-    self.queue.put((cv, "accept", res, N, v))
-    while len(res) < 1:
-      cv.wait()
-    cv.release()
-    return res[0]
+    return acceptor._WorkFuture(self.queue, "accept", (N, v)).get()
+
+  def query(self):
+    return acceptor._WorkFuture(self.queue, "query", None).get()
 
 class learner(threading.Thread):
   def __init__(self, peers):
@@ -102,13 +106,19 @@ class learner(threading.Thread):
     self.peers = peers
     self.queue = queue.Queue()
     self.daemon = True
+    self.timeout = 0.1
     self.start()
 
   def run(self):
-    pass # TODO
+    pass
 
   def value(self):
-    pass # TODO
+    maj, resps = zmqrpc.async_multicall(self.peers, self.timeout, "query", [])
+    maj, maj_val = majority(len(self.peers), [resp[1] for resp in resps])
+    if maj and maj_val is not None:
+      return ("KNOW", maj_val)
+    else:
+      return ("DONT_KNOW",)
 
 class proposer(threading.Thread):
   def __init__(self, peers):
@@ -161,6 +171,9 @@ class rpcsurface:
 
   def prepare(self, N):
     return self.acceptor.prepare(N)
+
+  def query(self):
+    return self.acceptor.query()
 
 def usage():
   print("Usage:")

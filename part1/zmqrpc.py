@@ -108,7 +108,8 @@ def async_multicall(peers, timeout, name, args):
   for future_sock in futures.keys():
     poller.register(future_sock, zmq.POLLIN)
 
-  while len(results) < ((len(peers) // 2) + 1):
+  # while len(results) < ((len(peers) // 2) + 1):  # quit on majority responded
+  while len(results) < len(peers):  # quit when everyone responds
     elapsed = time.time() - starttime
     if elapsed >= timeout: break
 

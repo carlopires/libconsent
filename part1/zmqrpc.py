@@ -7,6 +7,8 @@ import threading
 import time
 import zmq
 
+# Turns an arbitrary python object into an RPC server by introspecting and
+# ignoring private (i.e., "_"-prefixed) methods.
 class Server(threading.Thread):
   def __init__(self, zctx, endpoint, obj):
     threading.Thread.__init__(self)
@@ -21,24 +23,37 @@ class Server(threading.Thread):
 
   def run(self):
     while True:
+      # Deserialize,
       req = self.socket.recv_pyobj()
       rep = None
 
       try:
+        # Call,
         rep = self.methods[req[0]](*req[1])
 
       except Exception as e:
         print(e)
         pass
 
+      # And serialize the response.
       self.socket.send_pyobj(rep)
 
+
+# Clients are fairly dumb; they'll just serialize calls into them and send
+# the bits on to the server end of things (de-serializing responses, of
+# course).
 class Client:
   def __init__(self, zctx, endpoint):
     self._socket = zctx.socket(zmq.REQ)
     self._socket.connect(endpoint)
     self._needs_recv = False
 
+  # We attempt to cleverly handle asynchronously available servers by
+  # dropping backed-up requests to them, and occasionally checking to see
+  # if they've come back. Obviously this doesn't work if the server totally
+  # crashes because it'll never reply to a request it hasn't gotten; the
+  # solution to this is to use PUB/SUB and message passing instead of REQ/REP.
+  # 20-20 hindsight, motherfucker.
   def _unblock(self):
     try:
       self._socket.recv(zmq.NOBLOCK)
@@ -48,6 +63,8 @@ class Client:
       raise
     return True
 
+  # Wrap send/recv in order to do the clever things we talked about ten lines
+  # previous.
   def send_pyobj(self, obj):
     if self._needs_recv:
       if self._unblock():
@@ -62,6 +79,7 @@ class Client:
     self._needs_recv = False
     return o
 
+  # Syntax sugar.
   class _Call:
     def __init__(self, name, client):
       self.name = name
@@ -74,6 +92,8 @@ class Client:
   def __getattr__(self, name):
     return Client._Call(name, self)
 
+  # A basic Future so that we can send out many RPCs simultaneously and check
+  # for responses modulo some timeout.
   class _FutureCall:
     def __init__(self, name, client, args):
       self.client = client
@@ -90,7 +110,9 @@ class Client:
 
 # Performs a given RPC against a set of peers; returns when a quorum of servers has
 # replied, after the timeout interval (in seconds) has passed, whichever happens
-# first.
+# first. (Actually, returns when *all* servers has replied, or the timeout has
+# occurred. Waiting for quorum just seems stupid esp. with our RPC REQ/REP socket
+# interface.)
 #
 # On success, returns (True, values), where values is a list of at least quorum
 #   values.

@@ -84,11 +84,11 @@ class acceptor(threading.Thread):
   class _WorkFuture:
     def __init__(self, queue, cmd, args):
       self.cv = threading.Condition()
-      self.cv.acquire()
       self.res = []
       queue.put((self.cv, cmd, self.res, args))
 
     def get(self):
+      self.cv.acquire()
       while len(self.res) < 1:
         self.cv.wait()
       self.cv.release()
@@ -136,12 +136,12 @@ class proposer(threading.Thread):
     self.queue.put(value)
 
   def run(self):
+    N = 0
     while True:
       v = self.queue.get()
       maj = False
 
       # Phase 1:
-      N = 0
       maj, resps = zmqrpc.async_multicall(self.peers, self.timeout, "prepare", [N])
 
       if maj:
@@ -155,6 +155,8 @@ class proposer(threading.Thread):
 
         # Phase 2:
         zmqrpc.async_multicall(self.peers, self.timeout, "accept", [N, v])
+
+      N += 1
 
 class rpcsurface:
   def __init__(self, peers, dbfile):

@@ -59,8 +59,8 @@ class acceptor(threading.Thread):
           self.db.sync()
           out.append(("promise", propose_N, self.db.get("V")))
         else:
-          pass
           # what now? TODO
+          out.append(None)
       elif cmd == "accept":
         # Phase 2:
         propose_N, propose_v = v[3]
@@ -70,8 +70,8 @@ class acceptor(threading.Thread):
           self.db["V"] = propose_v
           self.db.sync()
         else:
-          pass
           # what now? TODO
+          pass
         out.append(None)
       elif cmd == "query":
         out.append((self.db.get("N"), self.db.get("V")))
@@ -147,7 +147,8 @@ class proposer(threading.Thread):
       if maj:
         # We can only send our 'v' for acceptance if we have not crossed the
         # rubicon: if any other v *possibly* has quorum, we can't submit.
-        maj, maj_val = majority(len(self.peers), [resp[2] for resp in resps])
+        maj, maj_val = majority(len(self.peers), \
+            [resp[2] for resp in resps if resp is not None])
 
       if maj:
         if maj_val is not None:

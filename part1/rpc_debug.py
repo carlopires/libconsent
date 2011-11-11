@@ -1,7 +1,10 @@
 #!/usr/bin/python3 -tt
 
 import sys
-import xmlrpc.client
+import zmq
+import zmqrpc
 
-server = xmlrpc.client.ServerProxy(sys.argv[1])
-getattr(server, sys.argv[2])(*sys.argv[3:])
+zctx = zmq.Context()
+
+client = zmqrpc.Client(zctx, sys.argv[1])
+print(getattr(client, sys.argv[2])(*sys.argv[3:]))

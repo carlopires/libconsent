@@ -14,12 +14,13 @@ import zmq
 import zmqrpc
 
 # Takes in a number of peers, and a list of at most n_peers values.
-# Returns (True, value) if any value has quorum.
+# Returns (True, v) if any value v has quorum.
 # Returns (False, None) if no value has quorum.
 def majority(n_peers, values):
   if len(values) < ((n_peers // 2) + 1):
     return (False, None)
 
+  # Count the number of occurrences of each value.
   v_counts = []
   for v in values:
     found = False
@@ -30,11 +31,13 @@ def majority(n_peers, values):
     if not found:
       v_counts.append([v, 1])
 
+  # If any value has quorum, return it.
   for (v, count) in v_counts:
-    if count >= ((n_peers // 2) + 1):  # quorum?
+    if count >= ((n_peers // 2) + 1):
       return (True, v)
 
   return (False, None)
+
 
 class acceptor(threading.Thread):
   def __init__(self, peers, dbfile):
@@ -47,6 +50,7 @@ class acceptor(threading.Thread):
 
   def run(self):
     while True:
+      # Incoming RPCs are effectively serialized through self.queue.
       v = self.queue.get()
       cv, cmd, out = v[0], v[1], v[2]
       cv.acquire()
@@ -59,8 +63,9 @@ class acceptor(threading.Thread):
           self.db.sync()
           out.append(("promise", propose_N, self.db.get("V")))
         else:
-          # what now? TODO
+          # Proposer's N is less than the value we already promised; ignore.
           out.append(None)
+
       elif cmd == "accept":
         # Phase 2:
         propose_N, propose_v = v[3]
@@ -69,18 +74,26 @@ class acceptor(threading.Thread):
           self.db.sync()
           self.db["V"] = propose_v
           self.db.sync()
-        else:
-          # what now? TODO
-          pass
-        out.append(None)
-      elif cmd == "query":
-        out.append((self.db.get("N"), self.db.get("V")))
-      else:
+
+        # Proposers don't really need to know if we accepted their proposal
+        # or not.
         out.append(None)
 
+      elif cmd == "query":
+        # Dump any state we have if a learner asks.
+        out.append((self.db.get("N"), self.db.get("V")))
+
+      else:
+        # This should never happen, but handle it anyways.
+        out.append(None)
+
+      # This notifies one of the future-ized calls serialized through the work
+      # queue that we finished and it can return a value.
       cv.notify()
       cv.release()
 
+  # Basic futures implementation to serialize multithreaded calls through the
+  # single-threaded acceptor state machine.
   class _WorkFuture:
     def __init__(self, queue, cmd, args):
       self.cv = threading.Condition()
@@ -103,6 +116,7 @@ class acceptor(threading.Thread):
   def query(self):
     return acceptor._WorkFuture(self.queue, "query", None).get()
 
+
 class learner(threading.Thread):
   def __init__(self, peers):
     threading.Thread.__init__(self)
@@ -113,15 +127,21 @@ class learner(threading.Thread):
     self.start()
 
   def run(self):
+    # So, we lied a little. The learner doesn't need its own thread.
     pass
 
   def value(self):
+    # Just ask acceptors what they think they've decided on.
     maj, resps = zmqrpc.async_multicall(self.peers, self.timeout, "query", [])
     maj, maj_val = majority(len(self.peers), [resp[1] for resp in resps])
+
+    # If a quorum agree on a value (and, implementation detail, that value
+    # isn't None), return it.
     if maj and maj_val is not None:
       return ("KNOW", maj_val)
     else:
       return ("DONT_KNOW",)
+
 
 class proposer(threading.Thread):
   def __init__(self, peers):
@@ -138,6 +158,8 @@ class proposer(threading.Thread):
   def run(self):
     N = 0
     while True:
+      # Really basic state machine. Do a proposal round for every value given
+      # to us.
       v = self.queue.get()
       maj = False
 
@@ -145,8 +167,8 @@ class proposer(threading.Thread):
       maj, resps = zmqrpc.async_multicall(self.peers, self.timeout, "prepare", [N])
 
       if maj:
-        # We can only send our 'v' for acceptance if we have not crossed the
-        # rubicon: if any other v *possibly* has quorum, we can't submit.
+        # We can only send our 'v' for acceptance if we have not already crossed
+        # the Rubicon: if any other v *possibly* has quorum, we can't submit.
         maj, maj_val = majority(len(self.peers), \
             [resp[2] for resp in resps if resp is not None])
 
@@ -159,6 +181,9 @@ class proposer(threading.Thread):
 
       N += 1
 
+
+# We want different RPCs to feed input to different state machines; dispatch
+# here.
 class rpcsurface:
   def __init__(self, peers, dbfile):
     self.learner = learner(peers)
@@ -181,6 +206,8 @@ class rpcsurface:
   def query(self):
     return self.acceptor.query()
 
+
+# Blah blah boring argument parsing / command-line UX / initialization follows.
 def usage():
   print("Usage:")
   print("  replica.py <filename.db> <myaddr> <peers>")

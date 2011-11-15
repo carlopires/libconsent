@@ -28,6 +28,16 @@ def usage():
   print("servers     - \"                                             acceptors in")
   print("              this paxos system")
 
+class rpc:
+  def __init__(self, agent):
+    self._agent = agent
+
+  def propose(self, value):
+    self._agent.propose(value)
+
+  def value(self):
+    return self._agent.value()
+
 def main(args):
   if len(args) < 7:
     usage()
@@ -43,9 +53,10 @@ def main(args):
 
   fuckpython = xmladdr.split(":")
   fuckpython[1] = int(fuckpython[1])
-  xmlrpcserver = xmlrpc.server.SimpleXMLRPCServer(tuple(fuckpython))
-  xmlrpcserver.register_function(lambda x: agent.propose(x), "propose")
-  xmlrpcserver.register_function(lambda: agent.learn(), "learn")
+  xmlrpcserver = xmlrpc.server.SimpleXMLRPCServer(tuple(fuckpython), \
+      logRequests=False, allow_none=True)
+
+  xmlrpcserver.register_instance(rpc(agent))
   xmlrpcserver.register_introspection_functions()
   xmlrpcserver.serve_forever()
 

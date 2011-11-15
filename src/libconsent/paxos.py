@@ -108,7 +108,7 @@ class _acceptor(threading.Thread):
         return_((self.db.get("N"), self.db.get("V")))
 
 
-class learner:
+class _learner:
   """
   Implements a paxos learner.
   """
@@ -134,7 +134,7 @@ class learner:
       return ("DONT_KNOW",)
 
 
-class proposer(threading.Thread):
+class _proposer(threading.Thread):
   """
   Implements a paxos proposer.
   """

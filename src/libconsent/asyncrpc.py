@@ -132,7 +132,7 @@ class MultiClient:
     self._lock = threading.Lock()
     self._timeout = None
     self._nonce = -2000*1000*1000
-    self._poller = zctx.Poller()
+    self._poller = zmq.Poller()
     self._poller.register(self._sub, zmq.POLLIN)
 
   def add_server(self, endpoint):

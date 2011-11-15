@@ -23,9 +23,9 @@ def usage():
   print("accbind     - The ZMQ endpoint to use for this node's acceptor")
   print("learnbind   - \"                                       learner")
   print("propbind    - \"                                       proposer")
-  print("clients     - Comma delimited list of all ZMQ endpoints for proposers and \\")
+  print("clients     - Comma delimited list of all ZMQ endpoints for proposers and")
   print("              learners in this paxos system")
-  print("servers     - \"                                             acceptors in \\")
+  print("servers     - \"                                             acceptors in")
   print("              this paxos system")
 
 def main(args):
@@ -41,7 +41,9 @@ def main(args):
   agent = libconsent.paxos.agent(zctx, dbfile, learnbind, propbind, accbind, \
       clients, servers)
 
-  xmlrpcserver = xmlrpc.server.SimpleXMLRPCServer(xmladdr.split(":"))
+  fuckpython = xmladdr.split(":")
+  fuckpython[1] = int(fuckpython[1])
+  xmlrpcserver = xmlrpc.server.SimpleXMLRPCServer(tuple(fuckpython))
   xmlrpcserver.register_function(lambda x: agent.propose(x), "propose")
   xmlrpcserver.register_function(lambda: agent.learn(), "learn")
   xmlrpcserver.register_introspection_functions()

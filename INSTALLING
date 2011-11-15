@@ -1,8 +1,0 @@
-To install libconsent:
-
-$ cd src
-$ make DIST_EXTRA_CPPFLAGS="your compile flags here" all
-$ install -Dm 644 libconsent.so /usr/lib{,64}/libconsent.so
-$ install -Dm 644 libconsent.a /usr/lib{,64}/libconsent.a
-$ cd ../include
-$ install -Dm 644 libconsentpp.h /usr/include/libconsentpp.h

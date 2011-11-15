@@ -1,7 +1,9 @@
-# Conrad Meyer <cemeyer@uw.edu>
-# 0824410
-# CSE 550 Problem Set 3
-# Thu Nov 10 2011
+# Copyright 2011 Conrad Meyer <cemeyer@uw.edu>
+#
+# This work is placed under the MIT license, the full text of which is
+# included in the `COPYING' file at the root of the project sources.
+#
+# Author(s): Conrad Meyer
 
 import threading
 import time

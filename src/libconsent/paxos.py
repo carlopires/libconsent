@@ -48,7 +48,7 @@ class _acceptor_rpc:
   def accept(self, return_, N, v):
     self._queue.put((return_, "accept!", (N, v)))
 
-  def query(self):
+  def query(self, return_):
     self._queue.put((return_, "query", None))
 
 
@@ -82,10 +82,10 @@ class _acceptor(threading.Thread):
       if message == "prepare":
         # Phase 1:
         propose_N = args
-        if "N" not in self.db or propose_N > self.db["N"]:
-          self.db["N"] = propose_N
-          self.db.sync()
-          return_(("promise", propose_N, self.db.get("V")))
+        if "N" not in self._db or propose_N > self._db["N"]:
+          self._db["N"] = propose_N
+          self._db.sync()
+          return_(("promise", propose_N, self._db.get("V")))
         else:
           # Proposer's N is less than the value we already promised; ignore.
           pass
@@ -93,11 +93,11 @@ class _acceptor(threading.Thread):
       elif message == "accept!":
         # Phase 2:
         propose_N, propose_v = args
-        if "N" not in self.db or self.db["N"] <= propose_N:
-          self.db["N"] = propose_N
-          self.db.sync()
-          self.db["V"] = propose_v
-          self.db.sync()
+        if "N" not in self._db or self._db["N"] <= propose_N:
+          self._db["N"] = propose_N
+          self._db.sync()
+          self._db["V"] = propose_v
+          self._db.sync()
 
         # Proposers don't really need to know if we accepted their proposal
         # or not.
@@ -105,7 +105,7 @@ class _acceptor(threading.Thread):
 
       elif message == "query":
         # Dump any state we have if a learner asks.
-        return_((self.db.get("N"), self.db.get("V")))
+        return_((self._db.get("N"), self._db.get("V")))
 
 
 class _learner:
@@ -166,7 +166,7 @@ class _proposer(threading.Thread):
 
       # We can only send our 'v' for acceptance if we have not already crossed
       # the Rubicon: if any other v *possibly* has quorum, we can't submit.
-      maj, maj_val = _majority(len(self.peers), [resp[2] for resp in resps])
+      maj, maj_val = _majority(len(self._peers), [resp[2] for resp in resps])
 
       if maj:  # We need quorum promises to submit one way or the other.
         # Phase 2:
@@ -192,6 +192,9 @@ class agent:
     self._acceptor = _acceptor(zctx, acceptor_endpoint, all_client_endpoints, dbfile)
     self._proposer = _proposer(zctx, proposer_endpoint, all_acceptor_endpoints)
     self._learner = _learner(zctx, learner_endpoint, all_acceptor_endpoints)
+
+    self._acceptor.start()
+    self._proposer.start()
 
   def propose(self, value):
     self._proposer.propose(value)

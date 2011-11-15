@@ -40,6 +40,7 @@ class Server(threading.Thread):
         self._methods[x] = getattr(rpcobj, x)
     self._zmq = zctx
     self._sub = zctx.socket(zmq.SUB)
+    self._sub.setsockopt(zmq.SUBSCRIBE, b'')
     self._sub.bind(endpoint)
     self._lock = threading.Lock()
     self._clients = {}
@@ -69,7 +70,7 @@ class Server(threading.Thread):
     with self._lock:
       sock = self._zmq.socket(zmq.PUB)
       sock.connect(endpoint)
-      return_ = _Return(sock)
+      return_ = Server._Return(sock)
       self._clients[endpoint] = sock
       self._client_returns[endpoint] = return_
 
@@ -176,6 +177,7 @@ class MultiClient:
     self._nonce += 1
     if self._nonce > 2000*1000*1000:
       self._nonce = -2000*1000*1000
+    return res
 
   def _call(self, name, args):
     # Actually performs the call to the remote servers, waits (until timeout,

@@ -2,7 +2,7 @@
 
 # Terminal log showing this script in use:
 #
-# $ bash part1_test.bash 
+# $ bash part1_test.bash
 #   Paxos implementation tool:
 #     Usage:
 #       propose <r> <v> - Propose value v
@@ -13,7 +13,7 @@
 #
 #   > propose alice test1
 #   None
-#   > propose bob test2 
+#   > propose bob test2
 #   None
 #   > propose charlie test3
 #   None
@@ -24,7 +24,7 @@
 #   > exit
 #
 # Another:
-#   $ bash part1_test.bash 
+#   $ bash part1_test.bash
 #   Paxos implementation tool:
 #     Usage:
 #       propose <r> <v> - Propose value v

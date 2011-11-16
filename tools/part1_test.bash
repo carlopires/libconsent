@@ -1,64 +1,38 @@
 #!/bin/bash
 
-# Terminal log showing this script in use:
-#
-# $ bash part1_test.bash
-#   Paxos implementation tool:
-#     Usage:
-#       propose <r> <v> - Propose value v
-#       learn <r>       - Check learned value
-#       exit|quit       - Quit
-#     <r> is the replica name to send the rpc to
-#     <v> is the value
-#
-#   > propose alice test1
-#   None
-#   > propose bob test2
-#   None
-#   > propose charlie test3
-#   None
-#   > propose alice test4
-#   None
-#   > learn bob
-#   ('KNOW', 'test1')
-#   > exit
-#
-# Another:
-#   $ bash part1_test.bash
-#   Paxos implementation tool:
-#     Usage:
-#       propose <r> <v> - Propose value v
-#       learn <r>       - Check learned value
-#       exit|quit       - Quit
-#     <r> is the replica name to send the rpc to
-#     <v> is the value
-#
-#   > learn alice
-#   ('DONT_KNOW',)
-#   >
-
 # Put as many distinctly-named replicas as you want here (N > 0):
-replicas=( alice bob charlie )
-peerlist=""
+replicas=( alice bob cait )
+acclist=""
+othlist=""
 
-# Construct the list of replica peers:
+# Construct the list of replica acceptors, others:
 for repl in "${replicas[@]}" ; do
-  peerlist="${peerlist},ipc://${repl}"
+  acclist="${acclist},ipc://${repl}-acc"
+  othlist="${othlist},ipc://${repl}-learn,ipc://${repl}-prop"
 done
-peerlist="${peerlist:1}"
+acclist="${acclist:1}"
+othlist="${othlist:1}"
 
 # Bring up the replicas:
+xmlrpcport=8888
+echo "Binding ${xmlrpcport} and up for RPCs."
 for repl in "${replicas[@]}" ; do
-  python3 replica.py "backing_${repl}.db" "ipc://${repl}" \
-    "${peerlist}" &
+  python3 replica.py "backing_${repl}.db" "127.0.0.1:${xmlrpcport}"  \
+    "ipc://${repl}-acc" \
+    "ipc://${repl}-learn" \
+    "ipc://${repl}-prop" \
+    "${othlist}" \
+    "${acclist}" &
+
+  xmlrpcport=$((xmlrpcport+1))
 done
 
 function usage(){
   echo "  Usage:"
-  echo "    propose <r> <v> - Propose value v"
-  echo "    learn <r>       - Check learned value"
+  echo "    propose <p> <v> - Propose value v"
+  echo "    learn <p>       - Check learned value"
   echo "    exit|quit       - Quit"
-  echo "  <r> is the replica name to send the rpc to"
+  echo "  <p> is the port to send the rpc to"
   echo "  <v> is the value"
   echo ""
 }
@@ -87,14 +61,14 @@ while read -p "> " line; do
       if [ "x$rest" = "x" -o "x$value" = "x" ]; then
         usage
       else
-        python3 rpc_tool.py "ipc://$rest" propose "$value"
+        python3 xmlrpc_helper.py "http://127.0.0.1:$rest" propose "$value"
       fi
       ;;
     learn )
       if [ "x$rest" = "x" ]; then
         usage
       else
-        python3 rpc_tool.py "ipc://$rest" learn
+        python3 xmlrpc_helper.py "http://127.0.0.1:$rest" value
       fi
       ;;
     exit ) break
@@ -110,5 +84,7 @@ done
 kill %1 %2 %3
 for repl in "${replicas[@]}" ; do
   rm "backing_${repl}.db"
-  rm "${repl}" # zmq sockets
+  rm "${repl}-acc" # zmq sockets
+  rm "${repl}-learn"
+  rm "${repl}-prop"
 done

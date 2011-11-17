@@ -1,4 +1,5 @@
 multiple rounds
+non-bash script runner / interface
 multipaxos
 multicast (beware # peers issues)
 potentially quicker wire protos

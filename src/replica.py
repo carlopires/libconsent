@@ -11,6 +11,7 @@ import xmlrpc.server
 import zmq
 
 import libconsent.paxos
+import libconsent.tdb
 
 # Blah blah boring argument parsing / command-line UX / initialization follows.
 def usage():
@@ -48,7 +49,8 @@ def main(args):
   servers = servers.split(",")
 
   zctx = zmq.Context()
-  agent = libconsent.paxos.agent(zctx, dbfile, learnbind, propbind, accbind, \
+  db = libconsent.tdb.open(dbfile)
+  agent = libconsent.paxos.agent(zctx, db, learnbind, propbind, accbind, \
       clients, servers)
 
   fuckpython = xmladdr.split(":")

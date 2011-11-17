@@ -1,7 +1,6 @@
-1. dbfile -> put/get
-2. configable timeouts
-3. debug output, time-skew (for correctness verification) in asyncrpc
-4. multiple rounds
-5. multipaxos
-6. multicast (beware # peers issues)
-7. potentially quicker wire protos
+configable timeouts
+debug output, time-skew (for correctness verification) in asyncrpc
+multiple rounds
+multipaxos
+multicast (beware # peers issues)
+potentially quicker wire protos

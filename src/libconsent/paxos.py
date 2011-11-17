@@ -6,7 +6,6 @@
 # Author(s): Conrad Meyer
 
 import queue
-import shelve
 import threading
 import zmq
 
@@ -57,7 +56,7 @@ class _acceptor(threading.Thread):
   Implements a paxos acceptor.
   """
 
-  def __init__(self, zctx, endpoint, client_endpoints, dbfile):
+  def __init__(self, zctx, endpoint, client_endpoints, db):
     """
     Initializes this acceptor. We listen for messages from proposers/learners
     on 'endpoint' and send replies to clients who identify themself with
@@ -67,7 +66,7 @@ class _acceptor(threading.Thread):
     self._queue = queue.Queue()
     self._rpc = asyncrpc.Server(zctx, endpoint, _acceptor_rpc(self._queue))
     self._clients = client_endpoints
-    self._db = shelve.open(dbfile)
+    self._db = db
 
     self.daemon = True
 
@@ -82,9 +81,8 @@ class _acceptor(threading.Thread):
       if message == "prepare":
         # Phase 1:
         propose_N = args
-        if "N" not in self._db or propose_N > self._db["N"]:
-          self._db["N"] = propose_N
-          self._db.sync()
+        if self._db.get("N") is None or propose_N > self._db.get("N"):
+          self._db.put("N", propose_N)
           return_(("promise", propose_N, self._db.get("V")))
         else:
           # Proposer's N is less than the value we already promised; ignore.
@@ -93,11 +91,9 @@ class _acceptor(threading.Thread):
       elif message == "accept!":
         # Phase 2:
         propose_N, propose_v = args
-        if "N" not in self._db or self._db["N"] <= propose_N:
-          self._db["N"] = propose_N
-          self._db.sync()
-          self._db["V"] = propose_v
-          self._db.sync()
+        if self._db.get("N") is None or self._db.get("N") <= propose_N:
+          self._db.put("N", propose_N)
+          self._db.put("V", propose_v)
 
         # Proposers don't really need to know if we accepted their proposal
         # or not.
@@ -187,9 +183,26 @@ class agent:
   the basic (i.e., single value) consensus protocol.
   """
 
-  def __init__(self, zctx, dbfile, learner_endpoint, proposer_endpoint, \
+  def __init__(self, zctx, db, learner_endpoint, proposer_endpoint, \
       acceptor_endpoint, all_client_endpoints, all_acceptor_endpoints):
-    self._acceptor = _acceptor(zctx, acceptor_endpoint, all_client_endpoints, dbfile)
+    """
+    Initializes a paxos agent with this ZMQ context, database object, and
+    various ZMQ addresses.
+
+    The database object implements the following API and semantics:
+
+      db.get("string_key"):
+        Look up the value associated with the given key.
+        Returns None if no such key exists; otherwise returns the value.
+
+      db.put("string_key", python_value):
+        Atomically and durably stores the given python value at the given key.
+        (At this time, your database must be able to serialize arbitrary python
+        objects. In practice we're only going to be storing integers and user-
+        provided values. In the future we may limit user-provided values to
+        strings.)
+    """
+    self._acceptor = _acceptor(zctx, acceptor_endpoint, all_client_endpoints, db)
     self._proposer = _proposer(zctx, proposer_endpoint, all_acceptor_endpoints)
     self._learner = _learner(zctx, learner_endpoint, all_acceptor_endpoints)
 

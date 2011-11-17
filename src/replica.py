@@ -10,8 +10,12 @@ import time
 import xmlrpc.server
 import zmq
 
+import libconsent.asyncrpc
 import libconsent.paxos
 import libconsent.tdb
+
+libconsent.asyncrpc.DEBUG_LOG = True
+libconsent.asyncrpc.DEBUG_TIMING = 0.05
 
 # Blah blah boring argument parsing / command-line UX / initialization follows.
 def usage():

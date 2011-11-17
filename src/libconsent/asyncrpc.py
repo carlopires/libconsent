@@ -11,9 +11,21 @@
 #   Return values are also pickled python tuples:
 #     (nonce, value)
 
+import random
 import threading
 import time
 import zmq
+
+# If DEBUG_LOG is true, outputs to stdout on every message transmitted /
+# received. If DEBUG_TIMING is an numeric value, delays message receipt and
+# transmission by a random (uniform distribution) number of seconds between
+# zero and the given value.
+DEBUG_LOG = False
+DEBUG_TIMING = None
+
+def _debug_delay():
+  time.sleep(random.uniform(0, DEBUG_TIMING))
+
 
 class Server(threading.Thread):
   """
@@ -61,6 +73,10 @@ class Server(threading.Thread):
 
     def __call__(self, nonce, arg):
       with self._lock:
+        if DEBUG_TIMING is not None:
+          _debug_delay()
+        if DEBUG_LOG:
+          print("SERVER XMIT:", nonce, arg)
         self._socket.send_pyobj((nonce, arg))
 
   def add_client(self, endpoint):
@@ -90,6 +106,10 @@ class Server(threading.Thread):
     while True:
       try:
         caller, nonce, method, args = self._sub.recv_pyobj()
+        if DEBUG_TIMING is not None:
+          _debug_delay()
+        if DEBUG_LOG:
+          print("SERVER RECV:", caller, nonce, method, args)
         if not self.is_client(caller):
           continue
 
@@ -185,6 +205,10 @@ class MultiClient:
     # responded in time.
     with self._lock:
       nonce = self._next_nonce()
+      if DEBUG_TIMING is not None:
+        _debug_delay()
+      if DEBUG_LOG:
+        print("XMIT:", self._sub_endpoint, nonce, name, args)
       self._pub.send_pyobj((self._sub_endpoint, nonce, name, args))
 
       results = []
@@ -211,4 +235,8 @@ class MultiClient:
             if e.errno != zmq.EAGAIN:
               raise
 
+      if DEBUG_TIMING is not None:
+        _debug_delay()
+      if DEBUG_LOG:
+        print("RECV:", results)
       return results

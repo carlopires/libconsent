@@ -1,4 +1,3 @@
-configable timeouts
 debug output, time-skew (for correctness verification) in asyncrpc
 multiple rounds
 multipaxos

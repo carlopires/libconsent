@@ -50,8 +50,9 @@ def main(args):
 
   zctx = zmq.Context()
   db = libconsent.tdb.open(dbfile)
-  agent = libconsent.paxos.agent(zctx, db, learnbind, propbind, accbind, \
-      clients, servers)
+  timeout = 0.1
+  agent = libconsent.paxos.agent(zctx, db, timeout, learnbind, propbind, \
+      accbind, clients, servers)
 
   fuckpython = xmladdr.split(":")
   fuckpython[1] = int(fuckpython[1])

@@ -109,13 +109,13 @@ class _learner:
   Implements a paxos learner.
   """
 
-  def __init__(self, zctx, endpoint, peers):
+  def __init__(self, zctx, endpoint, peers, timeout):
     self._peers = peers
     self._queue = queue.Queue()
     self._rpcclient = asyncrpc.MultiClient(zctx, endpoint)
     for peer in peers:
       self._rpcclient.add_server(peer)
-    self._rpcclient.set_timeout(0.1)
+    self._rpcclient.set_timeout(timeout)
 
   def value(self):
     # Just ask acceptors what they think they've decided on.
@@ -135,14 +135,14 @@ class _proposer(threading.Thread):
   Implements a paxos proposer.
   """
 
-  def __init__(self, zctx, endpoint, peers):
+  def __init__(self, zctx, endpoint, peers, timeout):
     threading.Thread.__init__(self)
     self._peers = peers
     self._queue = queue.Queue()
     self._rpcclient = asyncrpc.MultiClient(zctx, endpoint)
     for peer in peers:
       self._rpcclient.add_server(peer)
-    self._timeout = 0.1
+    self._timeout = timeout
 
     self.daemon = True
 
@@ -183,11 +183,13 @@ class agent:
   the basic (i.e., single value) consensus protocol.
   """
 
-  def __init__(self, zctx, db, learner_endpoint, proposer_endpoint, \
+  def __init__(self, zctx, db, timeout, learner_endpoint, proposer_endpoint, \
       acceptor_endpoint, all_client_endpoints, all_acceptor_endpoints):
     """
-    Initializes a paxos agent with this ZMQ context, database object, and
-    various ZMQ addresses.
+    Initializes a paxos agent with this ZMQ context, database object, timeout,
+    and various ZMQ addresses.
+
+    Timeout is in seconds (int, long, or float types are ok).
 
     The database object implements the following API and semantics:
 
@@ -202,9 +204,12 @@ class agent:
         provided values. In the future we may limit user-provided values to
         strings.)
     """
-    self._acceptor = _acceptor(zctx, acceptor_endpoint, all_client_endpoints, db)
-    self._proposer = _proposer(zctx, proposer_endpoint, all_acceptor_endpoints)
-    self._learner = _learner(zctx, learner_endpoint, all_acceptor_endpoints)
+    self._acceptor = \
+        _acceptor(zctx, acceptor_endpoint, all_client_endpoints, db)
+    self._proposer = \
+        _proposer(zctx, proposer_endpoint, all_acceptor_endpoints, timeout)
+    self._learner = \
+        _learner(zctx, learner_endpoint, all_acceptor_endpoints, timeout)
 
     self._acceptor.start()
     self._proposer.start()

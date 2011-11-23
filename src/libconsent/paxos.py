@@ -5,17 +5,37 @@
 #
 # Author(s): Conrad Meyer
 
+# Wire protocol (borrowed from "Paxos made code"):
+#   Prepare: (i, b)
+#   Promise: (i, b, V, VB)
+#   Accept: (i, b, v)
+#   Learn: (i, b, v)
+#
+# Acceptor stable storage:
+#   iid -> (B, V, VB)
+
+# TODO periodically emit state of highest instance for which some value was
+# accepted from acceptor -> learner.
+# TODO wait for quorum replies in asyncrpc instead of all.
+
 import queue
 import threading
 import zmq
 
 from libconsent import asyncrpc
 
-# Takes in a number of peers, and a list of at most n_peers values.
-# Returns (True, v) if any value v has quorum.
-# Returns (False, None) if no value has quorum.
-def _majority(n_peers, values):
+def _is_majority(n_peers, values):
   if len(values) < ((n_peers // 2) + 1):
+    return False
+  return True
+
+# Takes in a number of peers, and a list of at most n_peers (V, VB) pairs.
+# Returns (True, None) if the instance is empty.
+# Returns (True, v) if the instance is reserved.
+# Returns (False, None) if a quorum of acceptors failed to reply.
+# TODO {
+def _majority(n_peers, values):
+  if not _is_majority(n_peers, values):
     return (False, None)
 
   # Count the number of occurrences of each value.
@@ -35,17 +55,18 @@ def _majority(n_peers, values):
       return (True, v)
 
   return (False, None)
+# }
 
 
 class _acceptor_rpc:
   def __init__(self, q):
     self._queue = q
 
-  def prepare(self, return_, N):
-    self._queue.put((return_, "prepare", N))
+  def prepare(self, return_, i, b):
+    self._queue.put((return_, "prepare", (i, b)))
 
-  def accept(self, return_, N, v):
-    self._queue.put((return_, "accept!", (N, v)))
+  def accept(self, return_, i, b, v):
+    self._queue.put((return_, "accept!", (i, b, v)))
 
   def query(self, return_):
     self._queue.put((return_, "query", None))
@@ -80,28 +101,39 @@ class _acceptor(threading.Thread):
 
       if message == "prepare":
         # Phase 1:
-        propose_N = args
-        if self._db.get("N") is None or propose_N > self._db.get("N"):
-          self._db.put("N", propose_N)
-          return_(("promise", propose_N, self._db.get("V")))
+        i, b = args
+        ikey = "acceptor." + i
+        B, V, VB = self._db.get(ikey) or (None, None, None)
+        if B is None or B <= b:
+          # Grant the request
+          B = b
+          self._db.put(ikey, (B, V, VB))
+          return_(("promise", i, b, V, VB))
         else:
-          # Proposer's N is less than the value we already promised; ignore.
+          # Proposer's B is less than the value we already promised; ignore.
           pass
 
       elif message == "accept!":
         # Phase 2:
-        propose_N, propose_v = args
-        if self._db.get("N") is None or self._db.get("N") <= propose_N:
-          self._db.put("N", propose_N)
-          self._db.put("V", propose_v)
+        i, b, v = args
+        ikey = "acceptor." + i
+        B, V, VB = self._db.get(ikey) or (None, None, None)
+        if B is None or B <= b:
+          # Grant the request
+          B = b
+          V = v
+          VB = b
+          self._db.put(ikey, (B, V, VB))
+          return_(("learn", i, b, v))
+        else:
+          # Proposer's B is less than the value we already promised; ignore.
+          pass
 
-        # Proposers don't really need to know if we accepted their proposal
-        # or not.
-        #return_(None)
-
+      # TODO {
       elif message == "query":
         # Dump any state we have if a learner asks.
         return_((self._db.get("N"), self._db.get("V")))
+      # }
 
 
 class _learner:
@@ -117,7 +149,11 @@ class _learner:
       self._rpcclient.add_server(peer)
     self._rpcclient.set_timeout(timeout)
 
+  def learn(self, i, val):
+    # TODO
+
   def value(self):
+    # TODO {
     # Just ask acceptors what they think they've decided on.
     resps = self._rpcclient.query()
     maj, maj_val = _majority(len(self._peers), [resp[1] for resp in resps])
@@ -128,6 +164,7 @@ class _learner:
       return ("KNOW", maj_val)
     else:
       return ("DONT_KNOW",)
+    # }
 
 
 class _proposer(threading.Thread):
@@ -143,38 +180,62 @@ class _proposer(threading.Thread):
     for peer in peers:
       self._rpcclient.add_server(peer)
     self._timeout = timeout
+    # TODO {
+    self._peerid = XXX # must be unique number
+    self._learner = XXX
+    # }
 
     self.daemon = True
+
+  def nextballot(self, b):
+    # TODO : Must generate distinct ballot number (for this proposer) greater
+    # than 'b'.
+    pass
 
   def propose(self, value):
     self._queue.put(value)
 
   def run(self):
-    N = 0
+    i = 1  # TODO pick i more intelligently?
+    b = self.nextballot(0)  # TODO same?
+    v = None
+    self._rpcclient.set_timeout(self._timeout)
+
+    begin, retryphase1 = 1, 2
+    state = begin
+
     while True:
-      # Really basic state machine. Do a proposal round for every value given
-      # to us.
-      v = self._queue.get()
+      if state == begin:
+        v = self._queue.get()
+      elif state == retryphase1:
+        state = begin
 
       # Phase 1:
-      self._rpcclient.set_timeout(self._timeout)
-      resps = self._rpcclient.prepare(N)
+      resps = self._rpcclient.prepare(i, b)
 
       # We can only send our 'v' for acceptance if we have not already crossed
       # the Rubicon: if any other v *possibly* has quorum, we can't submit.
-      maj, maj_val = _majority(len(self._peers), [resp[2] for resp in resps])
+      # Each resp in resps is a ("promise", i, b, V, VB).
+      maj, res_val = _majority(len(self._peers), [resp[3:5] for resp in resps])
 
-      if maj:  # We need quorum promises to submit one way or the other.
-        # Phase 2:
+      if not maj:
+        state = retryphase1
+        b = self.nextballot(b)
+        continue
+      
+      # Instance is ready, proceed. Phase 2:
+      if res_val is not None:
+        v = res_val  # Instance is reserved; we must choose this value.
 
-        if maj_val is not None:
-          v = maj_val
+      resps = self._rpcclient.accept(i, b, v)
+      if not _is_majority(len(self._peers), resps):
+        state = retryphase1
+        b = self.nextballot(b)
+        continue
 
-        self._rpcclient.set_timeout(0)  # accept! doesn't trigger a reply.
-        self._rpcclient.accept(N, v)
-
-      N += 1
-
+      # Instance is closed. Convey "learn" messages to local learner.
+      self._learner.learn(i, v)
+      i += 1
 
 
 class agent:

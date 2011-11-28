@@ -27,6 +27,16 @@ def _debug_delay():
   time.sleep(random.uniform(0, DEBUG_TIMING))
 
 
+def _is_majority(n_peers, values):
+  """
+  Takes a list 'values' and a number 'n_peers'; returns true if there are
+  quorum items in the list.
+  """
+  if len(values) < ((n_peers // 2) + 1):
+    return False
+  return True
+
+
 class Server(threading.Thread):
   """
   asyncrpc.Server implements an RPC server from a (mostly) arbitrary python
@@ -203,6 +213,7 @@ class MultiClient:
     # Actually performs the call to the remote servers, waits (until timeout,
     # if it is non-None), and returns the results from all servers that
     # responded in time.
+
     with self._lock:
       nonce = self._next_nonce()
       if DEBUG_TIMING is not None:
@@ -214,7 +225,7 @@ class MultiClient:
       results = []
       starttime = time.time()
 
-      while len(results) < len(self._servers):
+      while not _is_majority(len(self._servers), results):
         remaining = None
         if self._timeout is not None:
           elapsed = time.time() - starttime

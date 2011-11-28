@@ -1,5 +1,5 @@
 non-bash script runner / interface
 automated testing
-multipaxos
+finish multipaxos [holes, intelligent catch-up, current group instance?]
 multicast (beware # peers issues)
 potentially quicker wire protos

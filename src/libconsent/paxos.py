@@ -14,48 +14,37 @@
 # Acceptor stable storage:
 #   iid -> (B, V, VB)
 
-# TODO periodically emit state of highest instance for which some value was
-# accepted from acceptor -> learner.
-# TODO wait for quorum replies in asyncrpc instead of all.
-
 import queue
 import threading
+import time
 import zmq
 
 from libconsent import asyncrpc
 
-def _is_majority(n_peers, values):
-  if len(values) < ((n_peers // 2) + 1):
-    return False
-  return True
-
-# Takes in a number of peers, and a list of at most n_peers (V, VB) pairs.
-# Returns (True, None) if the instance is empty.
-# Returns (True, v) if the instance is reserved.
-# Returns (False, None) if a quorum of acceptors failed to reply.
-# TODO {
 def _majority(n_peers, values):
-  if not _is_majority(n_peers, values):
+  """
+  Takes in a number of peers, and a list of at most n_peers (V, VB) pairs.
+
+  Returns (True, None) if the instance is empty.
+  Returns (True, v) if the instance is reserved.
+  Returns (False, None) if a quorum of acceptors failed to reply.
+  """
+  if not asyncrpc._is_majority(n_peers, values):
     return (False, None)
 
-  # Count the number of occurrences of each value.
-  v_counts = []
-  for v in values:
-    found = False
-    for rec in v_counts:
-      if rec[0] == v:
-        rec[1] += 1
-        found = True
-    if not found:
-      v_counts.append([v, 1])
+  empty = True
+  maxVB = None
+  maxV = None
+  for (V, VB) in values:
+    if VB is not None and (empty or VB > maxVB):
+      maxV = V
+      maxVB = VB
+      empty = False
 
-  # If any value has quorum, return it.
-  for (v, count) in v_counts:
-    if count >= ((n_peers // 2) + 1):
-      return (True, v)
+  if empty:
+    return (True, None)
 
-  return (False, None)
-# }
+  return (True, maxV)
 
 
 class _acceptor_rpc:
@@ -67,9 +56,6 @@ class _acceptor_rpc:
 
   def accept(self, return_, i, b, v):
     self._queue.put((return_, "accept!", (i, b, v)))
-
-  def query(self, return_):
-    self._queue.put((return_, "query", None))
 
 
 class _acceptor(threading.Thread):
@@ -129,47 +115,10 @@ class _acceptor(threading.Thread):
           # Proposer's B is less than the value we already promised; ignore.
           pass
 
-      # TODO {
-      elif message == "query":
-        # Dump any state we have if a learner asks.
-        return_((self._db.get("N"), self._db.get("V")))
-      # }
 
-
-class _learner:
+class _learner(threading.Thread):
   """
   Implements a paxos learner.
-  """
-
-  def __init__(self, zctx, endpoint, peers, timeout):
-    self._peers = peers
-    self._queue = queue.Queue()
-    self._rpcclient = asyncrpc.MultiClient(zctx, endpoint)
-    for peer in peers:
-      self._rpcclient.add_server(peer)
-    self._rpcclient.set_timeout(timeout)
-
-  def learn(self, i, val):
-    # TODO
-
-  def value(self):
-    # TODO {
-    # Just ask acceptors what they think they've decided on.
-    resps = self._rpcclient.query()
-    maj, maj_val = _majority(len(self._peers), [resp[1] for resp in resps])
-
-    # If a quorum agree on a value (and, implementation detail, that value
-    # isn't None), return it.
-    if maj and maj_val is not None:
-      return ("KNOW", maj_val)
-    else:
-      return ("DONT_KNOW",)
-    # }
-
-
-class _proposer(threading.Thread):
-  """
-  Implements a paxos proposer.
   """
 
   def __init__(self, zctx, endpoint, peers, timeout):
@@ -179,18 +128,62 @@ class _proposer(threading.Thread):
     self._rpcclient = asyncrpc.MultiClient(zctx, endpoint)
     for peer in peers:
       self._rpcclient.add_server(peer)
+    self._rpcclient.set_timeout(timeout)
+    self._values = {}
+    self._maxi = None
+
+  def learn(self, i, val):
+    # Acceptor tells us this value has been chosen for this round.
+    self._values[i] = val
+
+    # TODO resolve holes elsewhere and don't block acceptor thread.
+
+    if self._maxi < i:
+      self._maxi = i
+
+  def value(self, i):
+    # TODO don't deliver i if i-1 hasn't been delivered yet or resolve holes or
+    # something.
+    if i in self._values:
+      return ("KNOW", self._values[i])
+
+    return ("DONT_KNOW",)
+
+  def run(self):
+    while True:
+      # TODO periodically emit state of highest instance for which some value was
+      # accepted from acceptor -> learner. (Have learner be a thread; query
+      # acceptors at some interval.)
+      time.sleep(5)
+
+
+class _proposer(threading.Thread):
+  """
+  Implements a paxos proposer.
+  """
+
+  def __init__(self, zctx, endpoint, peers, timeout, peerid, learner):
+    threading.Thread.__init__(self)
+    self._peers = peers
+    self._queue = queue.Queue()
+    self._rpcclient = asyncrpc.MultiClient(zctx, endpoint)
+    for peer in peers:
+      self._rpcclient.add_server(peer)
     self._timeout = timeout
-    # TODO {
-    self._peerid = XXX # must be unique number
-    self._learner = XXX
-    # }
+    self._peerid = peerid
+    self._learner = learner
 
     self.daemon = True
 
   def nextballot(self, b):
-    # TODO : Must generate distinct ballot number (for this proposer) greater
-    # than 'b'.
-    pass
+    """
+    Generate distinct ballot number (for this proposer) greater than 'b'.
+    """
+    N = len(self._peers)
+    i = self._peerid - (b % N)
+    if i <= 0:
+      i += N
+    return b + i
 
   def propose(self, value):
     self._queue.put(value)
@@ -228,7 +221,7 @@ class _proposer(threading.Thread):
         v = res_val  # Instance is reserved; we must choose this value.
 
       resps = self._rpcclient.accept(i, b, v)
-      if not _is_majority(len(self._peers), resps):
+      if not asyncrpc._is_majority(len(self._peers), resps):
         state = retryphase1
         b = self.nextballot(b)
         continue
@@ -245,12 +238,14 @@ class agent:
   """
 
   def __init__(self, zctx, db, timeout, learner_endpoint, proposer_endpoint, \
-      acceptor_endpoint, all_client_endpoints, all_acceptor_endpoints):
+      acceptor_endpoint, all_client_endpoints, all_acceptor_endpoints, peerid):
     """
     Initializes a paxos agent with this ZMQ context, database object, timeout,
-    and various ZMQ addresses.
+    and various ZMQ addresses, as well as a unique peer id.
 
     Timeout is in seconds (int, long, or float types are ok).
+
+    Peer id must be unique for this paxos group and in the range [0, n_peers].
 
     The database object implements the following API and semantics:
 
@@ -267,13 +262,15 @@ class agent:
     """
     self._acceptor = \
         _acceptor(zctx, acceptor_endpoint, all_client_endpoints, db)
-    self._proposer = \
-        _proposer(zctx, proposer_endpoint, all_acceptor_endpoints, timeout)
     self._learner = \
         _learner(zctx, learner_endpoint, all_acceptor_endpoints, timeout)
+    self._proposer = \
+        _proposer(zctx, proposer_endpoint, all_acceptor_endpoints, timeout, \
+        peerid, self._learner)
 
     self._acceptor.start()
     self._proposer.start()
+    self._learner.start()
 
   def propose(self, value):
     self._proposer.propose(value)

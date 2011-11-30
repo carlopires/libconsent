@@ -7,3 +7,6 @@ src/__pycache__
 src/*/*.pyo
 src/*/*.pyc
 src/*/__pycache__
+*/*/*/__pycachy__/
+*/*/*/*.pyc
+*/*/*/__pycache__/

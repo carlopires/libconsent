@@ -88,7 +88,7 @@ class _acceptor(threading.Thread):
       if message == "prepare":
         # Phase 1:
         i, b = args
-        ikey = "acceptor." + i
+        ikey = "acceptor." + str(i)
         B, V, VB = self._db.get(ikey) or (None, None, None)
         if B is None or B <= b:
           # Grant the request
@@ -102,7 +102,7 @@ class _acceptor(threading.Thread):
       elif message == "accept!":
         # Phase 2:
         i, b, v = args
-        ikey = "acceptor." + i
+        ikey = "acceptor." + str(i)
         B, V, VB = self._db.get(ikey) or (None, None, None)
         if B is None or B <= b:
           # Grant the request
@@ -138,7 +138,7 @@ class _learner(threading.Thread):
 
     # TODO resolve holes elsewhere and don't block acceptor thread.
 
-    if self._maxi < i:
+    if self._maxi is None or self._maxi < i:
       self._maxi = i
 
   def value(self, i):
@@ -275,5 +275,5 @@ class agent:
   def propose(self, value):
     self._proposer.propose(value)
 
-  def value(self):
-    return self._learner.value()
+  def value(self, i):
+    return self._learner.value(i)

@@ -1,4 +1,3 @@
-non-bash script runner / interface
 automated testing
 finish multipaxos [holes, intelligent catch-up, current group instance?]
 multicast (beware # peers issues)

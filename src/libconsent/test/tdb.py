@@ -12,21 +12,21 @@
 import shelve
 
 class _tdb:
-  def __init__(self, fn):
-    self._db = shelve.open(fn)
+	def __init__(self, fn):
+		self._db = shelve.open(fn)
 
-  def get(self, key, defval=None):
-    if key in self._db:
-      return self._db[key]
-    return defval
+	def get(self, key, defval=None):
+		if key in self._db:
+			return self._db[key]
+		return defval
 
-  def put(self, key, value):
-    self._db[key] = value
-    self._db.sync()
+	def put(self, key, value):
+		self._db[key] = value
+		self._db.sync()
 
 def open(fn):
-  """
-  Opens a trivial database at the given filename 'fn'. It will create the file
-  if it does not exist, or load from the file if it does exist.
-  """
-  return _tdb(fn)
+	"""
+	Opens a trivial database at the given filename 'fn'. It will create the file
+	if it does not exist, or load from the file if it does exist.
+	"""
+	return _tdb(fn)
